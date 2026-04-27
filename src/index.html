@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>GitHub AI Code Reviewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+</head>
+<body class="bg-slate-900 text-slate-100 dark:bg-slate-900 dark:text-slate-100 min-h-screen font-mono text-sm transition-colors duration-200">
+
+<div class="flex h-screen overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-slate-950 light:bg-white border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto">
+    <div class="p-4 border-b border-slate-800 flex items-center gap-2">
+      <span class="text-blue-400 text-xl">⬡</span>
+      <span class="font-bold text-white text-base">AI Reviewer</span>
+    </div>
+
+    <!-- Nav tabs -->
+    <nav class="flex flex-col gap-1 p-3 border-b border-slate-800">
+      <button onclick="setView('analyze')" id="nav-analyze"
+        class="nav-btn active-nav text-left px-3 py-2 rounded-lg flex items-center gap-2">🔍 Analyze</button>
+      <button onclick="setView('history')" id="nav-history"
+        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">🕓 History</button>
+    </nav>
+    <!-- User auth section -->
+    <div class="mt-auto p-3 border-t border-slate-800">
+      <!-- Guest state -->
+      <div id="authGuest">
+        <p class="text-xs text-slate-500 mb-2">Sign in to save history</p>
+        <button onclick="openAuthModal()"
+          class="w-full bg-blue-600 hover:bg-blue-500 transition text-white text-xs font-semibold px-3 py-2 rounded-lg">
+          Sign in / Sign up
+        </button>
+      </div>
+      <!-- Signed-in state -->
+      <div id="authUser" class="hidden flex-col gap-1">
+        <p id="authEmail" class="text-xs text-slate-400 truncate"></p>
+        <button onclick="signOut()"
+          class="w-full text-xs text-red-400 hover:text-red-300 transition text-left px-1 py-1">
+          Sign out
+        </button>
+      </div>
+    </div>
+
+    <!-- Repo info (visible after analysis) -->
+    <div id="repoPanel" class="hidden p-3 flex flex-col gap-3">
+
+      <!-- Branches -->
+      <div>
+        <p class="text-xs text-slate-500 uppercase mb-1">Branches</p>
+        <div id="branchList" class="flex flex-col gap-1 max-h-40 overflow-y-auto"></div>
+      </div>
+
+      <!-- Tags -->
+      <div>
+        <p class="text-xs text-slate-500 uppercase mb-1">Tags</p>
+        <div id="tagList" class="flex flex-col gap-1 max-h-32 overflow-y-auto text-slate-300"></div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Top bar -->
+    <div class="bg-slate-950 border-b border-slate-800 p-4 flex gap-3 flex-wrap items-center shrink-0">
+      <input id="repoUrl" type="text" placeholder="https://github.com/user/repo"
+        class="flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+      <select id="branchDropdown" onchange="switchBranch(this.value)"
+        class="hidden bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </select>
+      <button onclick="analyze()"
+        class="bg-blue-600 hover:bg-blue-500 active:scale-95 transition text-white font-semibold px-5 py-2 rounded-lg flex items-center gap-2">
+        <span id="btnIcon">🚀</span><span id="btnText">Analyze</span>
+      </button>
+      <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark mode"
+        class="bg-slate-700 hover:bg-slate-600 transition text-white px-3 py-2 rounded-lg text-base shrink-0">
+        🌙
+      </button>
+    </div>
+
+    <!-- Error banner -->
+    <div id="errorBox" class="hidden mx-4 mt-3 bg-red-900/40 border border-red-500 text-red-300 px-4 py-2 rounded-lg shrink-0"></div>
+
+    <!-- Scrollable content -->
+    <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+
+      <!-- Analyze view -->
+      <div id="view-analyze">
+
+        <!-- Empty state -->
+        <div id="emptyState" class="flex flex-col items-center justify-center py-32 text-slate-600 gap-3">
+          <span class="text-5xl">🔎</span>
+          <p>Enter a GitHub repo URL and click Analyze</p>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden flex flex-col gap-4">
+
+          <!-- Repo meta -->
+          <div id="metaCard" class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-wrap gap-4 items-start"></div>
+
+          <!-- Summary stats -->
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+              <p class="text-slate-400 text-xs">Branch</p>
+              <p id="sumBranch" class="text-blue-300 font-bold truncate">—</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+              <p class="text-slate-400 text-xs">Files</p>
+              <p id="sumTotal" class="text-white font-bold">0</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+              <p class="text-slate-400 text-xs">Code</p>
+              <p id="sumCode" class="text-green-400 font-bold">0</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+              <p class="text-slate-400 text-xs">Docs</p>
+              <p id="sumDocs" class="text-sky-400 font-bold">0</p>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+              <p class="text-slate-400 text-xs">Issues</p>
+              <p id="sumIssues" class="text-yellow-400 font-bold">0</p>
+            </div>
+          </div>
+
+          <!-- File tabs -->
+          <div class="flex gap-1 border-b border-slate-700">
+            <button onclick="showTab('code')"    id="tab-code"    class="inner-tab active-tab px-4 py-2 rounded-t-lg">💻 Code</button>
+            <button onclick="showTab('docs')"    id="tab-docs"    class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📄 Docs</button>
+            <button onclick="showTab('other')"   id="tab-other"   class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📦 Other</button>
+            <button onclick="showTab('commits')" id="tab-commits" class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔖 Commits</button>
+            <button onclick="showTab('prs')"     id="tab-prs"     class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔀 PRs</button>
+            <button onclick="showTab('issues')"  id="tab-issues"  class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🐛 Issues</button>
+          </div>
+
+          <div id="tab-code-content"    class="flex flex-col gap-2"></div>
+          <div id="tab-docs-content"    class="hidden flex flex-col gap-2"></div>
+          <div id="tab-other-content"   class="hidden flex flex-col gap-2"></div>
+          <div id="tab-commits-content" class="hidden flex flex-col gap-2"></div>
+          <div id="tab-prs-content"     class="hidden flex flex-col gap-2"></div>
+          <div id="tab-issues-content"  class="hidden flex flex-col gap-2"></div>
+
+        </div>
+      </div>
+
+      <!-- History view -->
+      <div id="view-history" class="hidden flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-white font-bold text-base">Report History</h2>
+          <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300 transition">🗑 Clear all</button>
+        </div>
+        <div id="historyList" class="flex flex-col gap-2"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Auth modal -->
+<div id="authModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h2 class="text-white font-bold text-base">Sign in</h2>
+      <button onclick="closeAuthModal()" class="text-slate-500 hover:text-white transition text-lg">✕</button>
+    </div>
+    <!-- Tab toggle -->
+    <div class="flex rounded-lg overflow-hidden border border-slate-700 text-xs">
+      <button id="tabSignIn" onclick="setAuthTab('signin')" class="flex-1 py-2 bg-slate-700 text-white transition">Sign in</button>
+      <button id="tabSignUp" onclick="setAuthTab('signup')" class="flex-1 py-2 text-slate-400 hover:text-white transition">Sign up</button>
+    </div>
+    <!-- Email/password -->
+    <div class="flex flex-col gap-2">
+      <input id="authEmailInput" type="email" placeholder="Email"
+        class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"/>
+      <input id="authPasswordInput" type="password" placeholder="Password"
+        class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"/>
+      <input id="authConfirmInput" type="password" placeholder="Confirm password"
+        class="hidden bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"/>
+      <p id="authError" class="text-red-400 text-xs hidden"></p>
+      <button id="authSubmitBtn" onclick="submitAuth()"
+        class="bg-blue-600 hover:bg-blue-500 transition text-white font-semibold py-2 rounded-lg text-sm">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .active-nav  { background: #1e293b; color: white; }
+  .active-tab  { background: #1e293b; color: white; border: 1px solid #334155; border-bottom: none; }
+
+  /* Light mode overrides */
+  html.light body                          { background: #f1f5f9; color: #0f172a; }
+  html.light aside                         { background: #e2e8f0; border-color: #cbd5e1; }
+  html.light .bg-slate-950                 { background: #e2e8f0 !important; }
+  html.light .bg-slate-800                 { background: #f8fafc !important; }
+  html.light .bg-slate-700                 { background: #e2e8f0 !important; }
+  html.light .border-slate-800            { border-color: #cbd5e1 !important; }
+  html.light .border-slate-700            { border-color: #94a3b8 !important; }
+  html.light .text-slate-100              { color: #0f172a !important; }
+  html.light .text-slate-400              { color: #475569 !important; }
+  html.light .text-slate-500              { color: #64748b !important; }
+  html.light .text-slate-600              { color: #475569 !important; }
+  html.light .text-white                  { color: #0f172a !important; }
+  html.light .text-slate-200              { color: #1e293b !important; }
+  html.light .text-slate-300              { color: #334155 !important; }
+  html.light .placeholder-slate-500::placeholder { color: #94a3b8; }
+  html.light input, html.light select     { background: #f1f5f9 !important; color: #0f172a !important; border-color: #94a3b8 !important; }
+  html.light .active-nav                  { background: #cbd5e1; color: #0f172a; }
+  html.light .active-tab                  { background: #cbd5e1; color: #0f172a; border-color: #94a3b8; }
+  html.light .hover\:bg-slate-800:hover   { background: #e2e8f0 !important; }
+  html.light #themeToggle                 { background: #cbd5e1 !important; color: #0f172a !important; }
+</style>
+
+<script>
+  let currentData = null;
+  let currentUrl  = null;
+
+  // Auth state
+  let authToken = localStorage.getItem('token') || null;
+  let authEmail = localStorage.getItem('authEmail') || null;
+  let authMode  = 'signin';
+
+  // Restore session on load
+  if (authToken) setUser(authEmail);
+
+  function setUser(email) {
+    authEmail = email;
+    document.getElementById('authGuest').classList.toggle('hidden', !!email);
+    document.getElementById('authUser').classList.toggle('hidden', !email);
+    if (email) document.getElementById('authEmail').textContent = email;
+  }
+
+  function getToken() { return authToken; }
+
+  // Auth modal
+  function openAuthModal() {
+    document.getElementById('authModal').classList.remove('hidden');
+    document.getElementById('authError').classList.add('hidden');
+    document.getElementById('authEmailInput').value = '';
+    document.getElementById('authPasswordInput').value = '';
+    document.getElementById('authConfirmInput').value = '';
+  }
+
+  function closeAuthModal() {
+    document.getElementById('authModal').classList.add('hidden');
+  }
+
+  function setAuthTab(mode) {
+    authMode = mode;
+    const isSignIn = mode === 'signin';
+    document.getElementById('tabSignIn').className = `flex-1 py-2 transition ${isSignIn ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`;
+    document.getElementById('tabSignUp').className = `flex-1 py-2 transition ${!isSignIn ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`;
+    document.getElementById('authSubmitBtn').textContent = isSignIn ? 'Sign in' : 'Sign up';
+    document.getElementById('authConfirmInput').classList.toggle('hidden', isSignIn);
+    document.getElementById('authError').classList.add('hidden');
+  }
+
+  async function submitAuth() {
+    const email    = document.getElementById('authEmailInput').value.trim();
+    const password = document.getElementById('authPasswordInput').value;
+    const confirm  = document.getElementById('authConfirmInput').value;
+    const errEl    = document.getElementById('authError');
+    errEl.classList.add('hidden');
+
+    if (authMode === 'signup' && password !== confirm) {
+      errEl.textContent = 'Passwords do not match.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    const endpoint = authMode === 'signin' ? '/login' : '/register';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.detail || 'Something went wrong.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    authToken = data.token;
+    localStorage.setItem('token', authToken);
+    localStorage.setItem('authEmail', data.email);
+    setUser(data.email);
+    closeAuthModal();
+  }
+
+  function signOut() {
+    authToken = null;
+    authEmail = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('authEmail');
+    setUser(null);
+  }
+
+  // Theme toggle
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  }
+
+  // Apply saved theme on load
+  (function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+      document.documentElement.classList.add('light');
+      document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('themeToggle');
+        if (btn) btn.textContent = '☀️';
+      });
+    }
+  })();
+
+  // Switch active view
+  function setView(v) {
+    ['analyze','history'].forEach(x => {
+      document.getElementById(`view-${x}`).classList.toggle('hidden', x !== v);
+      const btn = document.getElementById(`nav-${x}`);
+      btn.className = x === v
+        ? 'nav-btn active-nav text-left px-3 py-2 rounded-lg flex items-center gap-2'
+        : 'nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition';
+    });
+    if (v === 'history') loadHistory();
+  }
+
+  // Switch branch without re-fetching repo metadata
+  async function switchBranch(branch) {
+    const url = currentUrl || document.getElementById('repoUrl').value.trim();
+    if (!url) { showError('No repo loaded yet.'); return; }
+    setLoading(true);
+    showError('');
+    try {
+      const res = await fetch('/switch-branch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, branch })
+      });
+      if (!res.ok) { showError(`Server error ${res.status}`); return; }
+      const data = await res.json();
+      // Preserve meta/tags/PRs/issues from the previous full analysis
+      data.meta  = currentData.meta;
+      data.tags  = currentData.tags;
+      data.pull_requests = currentData.pull_requests;
+      data.issues = currentData.issues;
+      currentData = data;
+      render(currentData);
+    } catch(e) {
+      showError('Branch switch failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Run analysis
+  async function analyze(branchOverride) {
+    const url    = document.getElementById('repoUrl').value.trim();
+    const branch = branchOverride || null;
+    if (!url) return;
+
+    currentUrl = url;
+    setLoading(true);
+    showError('');
+
+    try {
+      const token = getToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ url, branch })
+      });
+      if (!res.ok) { showError(`Server error ${res.status}`); return; }
+      currentData = await res.json();
+      render(currentData);
+    } catch(e) {
+      showError('Cannot reach backend. Is uvicorn running?');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Render analysis results
+  function render(d) {
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('results').classList.remove('hidden');
+    document.getElementById('repoPanel').classList.remove('hidden');
+
+    // Meta card
+    const mc = document.getElementById('metaCard');
+    mc.innerHTML = d.meta && d.meta.full_name ? `
+      <div class="flex-1">
+        <a href="${d.meta.url}" target="_blank" class="text-blue-400 font-bold hover:underline">${d.meta.full_name}</a>
+        <p class="text-slate-400 text-xs mt-1">${d.meta.description || ''}</p>
+      </div>
+      <div class="flex gap-4 text-xs text-slate-400 flex-wrap">
+        <span>⭐ ${d.meta.stars}</span>
+        <span>🍴 ${d.meta.forks}</span>
+        <span> ${d.meta.open_issues} open issues</span>
+        <span>🌐 ${d.meta.language || 'mixed'}</span>
+      </div>` : '';
+
+    // Summary stats
+    document.getElementById('sumBranch').textContent = d.branch;
+    document.getElementById('sumTotal').textContent  = d.summary.total;
+    document.getElementById('sumCode').textContent   = d.summary.code;
+    document.getElementById('sumDocs').textContent   = d.summary.docs;
+    document.getElementById('sumIssues').textContent = d.summary.issues;
+
+    // Sidebar branch list and top-bar dropdown
+    const bl = document.getElementById('branchList');
+    const dd = document.getElementById('branchDropdown');
+    bl.innerHTML = '';
+    dd.innerHTML = '';
+    dd.classList.remove('hidden');
+
+    d.branches.forEach(b => {
+      const isActive = b.name === d.branch;
+
+      // Sidebar button
+      const btn = document.createElement('button');
+      btn.className = `text-left px-2 py-1.5 rounded text-xs transition w-full flex items-center gap-1.5
+        ${isActive ? 'bg-blue-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+      btn.innerHTML = `
+        <span class="shrink-0">${b.is_default ? '⭐' : '🌿'}</span>
+        <span class="truncate flex-1">${esc(b.name)}</span>
+        <span class="shrink-0 ${b.merged ? 'text-green-400' : 'text-yellow-400'}" title="${b.merged ? 'merged' : 'unmerged'}">
+          ${b.merged ? '✓' : '○'}
+        </span>`;
+      btn.title = `${b.name} · ${b.merged ? 'merged' : 'unmerged'} · ${b.sha}`;
+      btn.id = `branch-btn-${b.name}`;
+      btn.onclick = () => switchBranch(b.name);
+      bl.appendChild(btn);
+
+      // Dropdown option
+      const opt = document.createElement('option');
+      opt.value = b.name;
+      opt.textContent = `${b.is_default ? '⭐ ' : ''}${b.name} ${b.merged ? '✓' : '○'}`;
+      if (isActive) opt.selected = true;
+      dd.appendChild(opt);
+    });
+
+    // Sidebar tags
+    const tl = document.getElementById('tagList');
+    tl.innerHTML = d.tags.length
+      ? d.tags.map(t => `<span class="text-xs text-slate-400 px-2 py-0.5">🏷 ${esc(t.name)}</span>`).join('')
+      : '<span class="text-xs text-slate-600 px-2">No tags</span>';
+
+    // File tabs
+    renderFileTab('code',  d.code);
+    renderFileTab('docs',  d.docs);
+    renderFileTab('other', d.other);
+
+    // Commits
+    renderList('commits', d.commits, c => `
+      <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-4 items-start">
+        <code class="text-yellow-400 shrink-0">${esc(c.sha)}</code>
+        <div class="flex-1 min-w-0">
+          <p class="text-white truncate">${esc(c.message)}</p>
+          <p class="text-slate-500 text-xs mt-0.5">${esc(c.author)} · ${c.date.slice(0,10)}</p>
+        </div>
+      </div>`);
+
+    // PRs
+    renderList('prs', d.pull_requests, pr => `
+      <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-3 items-start">
+        <span class="shrink-0 ${pr.state==='open' ? 'text-green-400' : 'text-purple-400'}">
+          ${pr.state==='open' ? '🟢' : '🟣'}
+        </span>
+        <div class="flex-1 min-w-0">
+          <a href="${pr.url}" target="_blank" class="text-blue-400 hover:underline truncate block">#${pr.number} ${esc(pr.title)}</a>
+          <p class="text-slate-500 text-xs mt-0.5">${esc(pr.author)} · ${pr.branch} · ${pr.created_at.slice(0,10)}</p>
+        </div>
+      </div>`);
+
+    // Issues
+    renderList('issues', d.issues, issue => `
+      <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-3 items-start">
+        <span class="shrink-0 ${issue.state==='open' ? 'text-red-400' : 'text-slate-500'}">
+          ${issue.state==='open' ? '🔴' : '⚫'}
+        </span>
+        <div class="flex-1 min-w-0">
+          <a href="${issue.url}" target="_blank" class="text-blue-400 hover:underline truncate block">#${issue.number} ${esc(issue.title)}</a>
+          <p class="text-slate-500 text-xs mt-0.5">${esc(issue.author)} · ${issue.created_at.slice(0,10)}
+            ${issue.labels.map(l=>`<span class="ml-1 bg-slate-700 px-1 rounded">${esc(l)}</span>`).join('')}
+          </p>
+        </div>
+      </div>`);
+
+    showTab('code');
+  }
+
+  function renderFileTab(type, files) {
+    const c = document.getElementById(`tab-${type}-content`);
+    c.innerHTML = '';
+    if (!files.length) {
+      c.innerHTML = `<p class="text-slate-500 py-4">No ${type} files.</p>`; return;
+    }
+    files.forEach(f => {
+      const hasIssues = f.issues && f.issues.length > 0;
+      const border = type==='code' ? (hasIssues ? 'border-yellow-600/50' : 'border-green-700/40') : type==='docs' ? 'border-sky-700/40' : 'border-slate-700';
+      const hbg    = type==='code' ? (hasIssues ? 'bg-yellow-900/20' : 'bg-green-900/20') : type==='docs' ? 'bg-sky-900/20' : 'bg-slate-800';
+      const badge  = type==='code'
+        ? (hasIssues ? `<span class="text-xs px-2 py-0.5 rounded-full bg-yellow-700/50 text-yellow-300">${f.issues.length} issue${f.issues.length>1?'s':''}</span>`
+                     : `<span class="text-xs px-2 py-0.5 rounded-full bg-green-700/50 text-green-300">clean</span>`)
+        : `<span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">${esc(f.ext||'?')}</span>`;
+
+      const div = document.createElement('div');
+      div.className = `bg-slate-800 border ${border} rounded-lg overflow-hidden`;
+      div.innerHTML = `
+        <div class="flex items-center justify-between px-4 py-2 ${hbg}">
+          <span class="truncate text-slate-200">${esc(f.path)}</span>
+          <div class="flex items-center gap-2 ml-3 shrink-0">
+            ${f.language ? `<span class="text-slate-400 text-xs">${esc(f.language)}</span>` : ''}
+            ${badge}
+          </div>
+        </div>
+        ${hasIssues ? `<ul class="px-4 py-2 flex flex-col gap-1">
+          ${f.issues.map(i=>`<li class="text-yellow-300 text-xs">⚠️ ${esc(i)}</li>`).join('')}
+        </ul>` : ''}`;
+      c.appendChild(div);
+    });
+  }
+
+  function renderList(tab, items, tpl) {
+    const c = document.getElementById(`tab-${tab}-content`);
+    c.innerHTML = items.length
+      ? items.map(tpl).join('')
+      : `<p class="text-slate-500 py-4">No ${tab} found.</p>`;
+  }
+
+  //  tabs
+  function showTab(tab) {
+    ['code','docs','other','commits','prs','issues'].forEach(t => {
+      document.getElementById(`tab-${t}-content`).classList.toggle('hidden', t !== tab);
+      const btn = document.getElementById(`tab-${t}`);
+      btn.className = t === tab
+        ? 'inner-tab active-tab px-4 py-2 rounded-t-lg'
+        : 'inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition';
+    });
+  }
+
+  //history 
+  async function loadHistory() {
+    const token = getToken();
+    if (!token) {
+      document.getElementById('historyList').innerHTML =
+        `<div class="text-center py-8 flex flex-col items-center gap-3">
+          <p class="text-slate-500 text-sm">Sign in to view your history</p>
+          <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-500 transition text-white text-xs px-4 py-2 rounded-lg">Sign in / Sign up</button>
+        </div>`;
+      return;
+    }
+    const res  = await fetch('/history', { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    if (!data.length) {
+      list.innerHTML = '<p class="text-slate-500">No history yet.</p>'; return;
+    }
+    data.forEach(h => {
+      const div = document.createElement('div');
+      div.className = 'bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between gap-4 cursor-pointer hover:border-blue-500 transition';
+      div.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <p class="text-blue-400 truncate">${esc(h.repo_url)}</p>
+          <p class="text-slate-400 text-xs mt-0.5">🌿 ${esc(h.branch)} · 📁 ${h.summary.total} files · ⚠️ ${h.summary.issues} issues · ${h.id.slice(0,10)}</p>
+        </div>
+        <button class="text-xs bg-blue-700 hover:bg-blue-600 text-white px-3 py-1 rounded-lg transition shrink-0">Re-run</button>`;
+      div.querySelector('button').onclick = () => {
+        document.getElementById('repoUrl').value = h.repo_url;
+        setView('analyze');
+        analyze(h.branch);
+      };
+      list.appendChild(div);
+    });
+  }
+
+  async function clearHistory() {
+    const token = getToken();
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    await fetch('/history', { method: 'DELETE', headers });
+    loadHistory();
+  }
+
+  // utils
+  function setLoading(on) {
+    document.getElementById('btnIcon').textContent = on ? '⏳' : '🚀';
+    document.getElementById('btnText').textContent = on ? 'Analyzing...' : 'Analyze';
+    const btn = document.getElementById('analyzeBtn') || document.querySelector('button[onclick="analyze()"]');
+    if (btn) { btn.disabled = on; btn.classList.toggle('opacity-60', on); }
+  }
+
+  function showError(msg) {
+    const b = document.getElementById('errorBox');
+    b.textContent = msg;
+    b.classList.toggle('hidden', !msg);
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  document.getElementById('repoUrl').addEventListener('keydown', e => { if(e.key==='Enter') analyze(); });
+</script>
+</body>
+</html>
