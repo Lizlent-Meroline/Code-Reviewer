@@ -7,6 +7,7 @@ import git
 #  Git local helpers 
 
 def clone_repo(repo_url: str, dest: str = "repos") -> str:
+    """Clone or fetch a GitHub repository to local disk."""
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
     repo_path = os.path.join(dest, repo_name)
     os.makedirs(dest, exist_ok=True)
@@ -68,6 +69,7 @@ def get_branches(repo_path: str) -> list[dict]:
 
 
 def checkout_branch(repo_path: str, branch: str):
+    """Checkout a specific branch in the local repository."""
     repo = git.Repo(repo_path)
     try:
         # detach first to avoid "already on branch" conflicts
@@ -80,6 +82,7 @@ def checkout_branch(repo_path: str, branch: str):
 
 
 def get_local_tags(repo_path: str) -> list[dict]:
+    """Get all tags from the local repository."""
     repo = git.Repo(repo_path)
     return [
         {
@@ -92,6 +95,7 @@ def get_local_tags(repo_path: str) -> list[dict]:
 
 
 def get_local_commits(repo_path: str, branch: str, limit: int = 30) -> list[dict]:
+    """Get recent commits from a specific branch."""
     repo = git.Repo(repo_path)
     commits = []
     for c in repo.iter_commits(branch, max_count=limit):
@@ -113,6 +117,7 @@ def _gh_owner_repo(repo_url: str):
 
 
 def _gh_get(path: str) -> list | dict:
+    """Make paginated GET request to GitHub API."""
     headers = {"Accept": "application/vnd.github+json"}
     results = []
     url = f"https://api.github.com{path}?per_page=50&page=1"
@@ -130,6 +135,7 @@ def _gh_get(path: str) -> list | dict:
 
 
 def get_pull_requests(repo_url: str) -> list[dict]:
+    """Fetch all pull requests from GitHub API."""
     owner, repo = _gh_owner_repo(repo_url)
     raw = _gh_get(f"/repos/{owner}/{repo}/pulls?state=all")
     return [
@@ -147,6 +153,7 @@ def get_pull_requests(repo_url: str) -> list[dict]:
 
 
 def get_issues(repo_url: str) -> list[dict]:
+    """Fetch all issues (excluding PRs) from GitHub API."""
     owner, repo = _gh_owner_repo(repo_url)
     raw = _gh_get(f"/repos/{owner}/{repo}/issues?state=all")
     return [
@@ -165,12 +172,14 @@ def get_issues(repo_url: str) -> list[dict]:
 
 
 def get_gh_tags(repo_url: str) -> list[dict]:
+    """Fetch all tags from GitHub API."""
     owner, repo = _gh_owner_repo(repo_url)
     raw = _gh_get(f"/repos/{owner}/{repo}/tags")
     return [{"name": t["name"], "sha": t["commit"]["sha"][:7]} for t in raw]
 
 
 def get_repo_meta(repo_url: str) -> dict:
+    """Fetch repository metadata from GitHub API."""
     owner, repo = _gh_owner_repo(repo_url)
     data = _gh_get(f"/repos/{owner}/{repo}")
     if not isinstance(data, dict):

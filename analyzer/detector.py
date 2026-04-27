@@ -22,34 +22,39 @@ SPECIAL_FILES = {
     "CMakeLists.txt": "cmake",
 }
 
+
 def detect_language(file_path):
+    """Detect programming language from file path and content."""
     filename = os.path.basename(file_path)
 
     # Layer 1: special filenames
     if filename in SPECIAL_FILES:
         return SPECIAL_FILES[filename]
 
-    # Layer 2: extension
+    # Layer 2: extension (covers 95% of cases, very fast)
     _, ext = os.path.splitext(file_path)
     if ext in EXTENSION_MAP:
         return EXTENSION_MAP[ext]
 
-    # Layer 3: content-based fallback
+    # Layer 3: content-based fallback (only for unknown extensions)
     return detect_by_content(file_path)
 
 
 def detect_by_content(file_path):
+    """Fallback language detection by analyzing file content."""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read(800)
+        # Only read first 512 bytes for speed
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read(512)
 
-        if "package main" in content:
+        # Quick substring checks (faster than regex)
+        if "package main" in content or "func main()" in content:
             return "go"
-        if "def " in content:
+        if "def " in content or "import " in content:
             return "python"
-        if "public class" in content:
+        if "public class" in content or "private class" in content:
             return "java"
-        if "console.log" in content:
+        if "console.log" in content or "function(" in content:
             return "javascript"
         if "#include" in content:
             return "cpp"
