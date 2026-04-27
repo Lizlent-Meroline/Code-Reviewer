@@ -4,7 +4,7 @@ import requests
 import git
 
 
-# ── Git local helpers ──────────────────────────────────────────────────────────
+#  Git local helpers 
 
 def clone_repo(repo_url: str, dest: str = "repos") -> str:
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
@@ -38,8 +38,11 @@ def get_branches(repo_path: str) -> list[str]:
 def checkout_branch(repo_path: str, branch: str):
     repo = git.Repo(repo_path)
     try:
+        # if local branch exists, just switch and reset to remote
         repo.git.checkout(branch)
+        repo.git.reset("--hard", f"origin/{branch}")
     except git.GitCommandError:
+        # local branch doesn't exist yet, create tracking branch
         repo.git.checkout("-b", branch, f"origin/{branch}")
     print(f"[github] Checked out: {branch}")
 
@@ -69,7 +72,7 @@ def get_local_commits(repo_path: str, branch: str, limit: int = 30) -> list[dict
     return commits
 
 
-# ── GitHub REST API helpers ────────────────────────────────────────────────────
+#  GitHub REST API helpers
 
 def _gh_owner_repo(repo_url: str):
     """Extract owner/repo from a github.com URL."""
