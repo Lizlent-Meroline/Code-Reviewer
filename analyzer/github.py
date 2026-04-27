@@ -13,8 +13,9 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
 
     if os.path.exists(repo_path):
         try:
-            print(f"[github] Fetching {repo_path}...")
-            git.Repo(repo_path).remotes.origin.fetch()
+            print(f"[github] Fetching all branches for {repo_path}...")
+            repo = git.Repo(repo_path)
+            repo.remotes.origin.fetch("--all")
             return repo_path
         except Exception as e:
             print(f"[github] Fetch failed ({e}), re-cloning...")
@@ -26,24 +27,55 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
     return repo_path
 
 
-def get_branches(repo_path: str) -> list[str]:
+def get_branches(repo_path: str) -> list[dict]:
+    """Return all remote branches with merge status relative to default branch."""
     repo = git.Repo(repo_path)
-    return [
-        ref.name.replace("origin/", "")
-        for ref in repo.remotes.origin.refs
-        if not ref.name.endswith("/HEAD")
-    ]
+
+    # get default branch (HEAD -> main/master/etc)
+    try:
+        default = repo.remotes.origin.refs["HEAD"].reference.name.replace("origin/", "")
+    except Exception:
+        default = "main"
+
+    # get all commits reachable from default branch for merge check
+    try:
+        merged_shas = set(
+            c.hexsha for c in repo.iter_commits(f"origin/{default}")
+        )
+    except Exception:
+        merged_shas = set()
+
+    branches = []
+    for ref in repo.remotes.origin.refs:
+        if ref.name.endswith("/HEAD"):
+            continue
+        name = ref.name.replace("origin/", "")
+        try:
+            tip_sha = ref.commit.hexsha
+            is_merged = name == default or tip_sha in merged_shas
+        except Exception:
+            is_merged = False
+        branches.append({
+            "name": name,
+            "merged": is_merged,
+            "is_default": name == default,
+            "sha": ref.commit.hexsha[:7] if ref.commit else "",
+        })
+
+    # sort: default first, then unmerged, then merged
+    branches.sort(key=lambda b: (not b["is_default"], b["merged"], b["name"]))
+    return branches
 
 
 def checkout_branch(repo_path: str, branch: str):
     repo = git.Repo(repo_path)
     try:
-        # if local branch exists, just switch and reset to remote
-        repo.git.checkout(branch)
-        repo.git.reset("--hard", f"origin/{branch}")
-    except git.GitCommandError:
-        # local branch doesn't exist yet, create tracking branch
-        repo.git.checkout("-b", branch, f"origin/{branch}")
+        # detach first to avoid "already on branch" conflicts
+        repo.git.checkout("--detach", f"origin/{branch}")
+        # now checkout properly
+        repo.git.checkout("-B", branch, f"origin/{branch}")
+    except git.GitCommandError as e:
+        raise RuntimeError(f"Could not checkout branch '{branch}': {e}")
     print(f"[github] Checked out: {branch}")
 
 
@@ -80,10 +112,8 @@ def _gh_owner_repo(repo_url: str):
     return parts[-2], parts[-1]
 
 
-def _gh_get(path: str, token: str = None) -> list | dict:
+def _gh_get(path: str) -> list | dict:
     headers = {"Accept": "application/vnd.github+json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     results = []
     url = f"https://api.github.com{path}?per_page=50&page=1"
     while url:
@@ -93,16 +123,15 @@ def _gh_get(path: str, token: str = None) -> list | dict:
         data = r.json()
         if isinstance(data, list):
             results.extend(data)
-            # follow pagination
             url = r.links.get("next", {}).get("url")
         else:
             return data
     return results
 
 
-def get_pull_requests(repo_url: str, token: str = None) -> list[dict]:
+def get_pull_requests(repo_url: str) -> list[dict]:
     owner, repo = _gh_owner_repo(repo_url)
-    raw = _gh_get(f"/repos/{owner}/{repo}/pulls?state=all", token)
+    raw = _gh_get(f"/repos/{owner}/{repo}/pulls?state=all")
     return [
         {
             "number": pr["number"],
@@ -117,9 +146,9 @@ def get_pull_requests(repo_url: str, token: str = None) -> list[dict]:
     ]
 
 
-def get_issues(repo_url: str, token: str = None) -> list[dict]:
+def get_issues(repo_url: str) -> list[dict]:
     owner, repo = _gh_owner_repo(repo_url)
-    raw = _gh_get(f"/repos/{owner}/{repo}/issues?state=all", token)
+    raw = _gh_get(f"/repos/{owner}/{repo}/issues?state=all")
     return [
         {
             "number": item["number"],
@@ -131,19 +160,19 @@ def get_issues(repo_url: str, token: str = None) -> list[dict]:
             "url": item["html_url"],
         }
         for item in raw
-        if "pull_request" not in item   # issues endpoint returns PRs too
+        if "pull_request" not in item
     ]
 
 
-def get_gh_tags(repo_url: str, token: str = None) -> list[dict]:
+def get_gh_tags(repo_url: str) -> list[dict]:
     owner, repo = _gh_owner_repo(repo_url)
-    raw = _gh_get(f"/repos/{owner}/{repo}/tags", token)
+    raw = _gh_get(f"/repos/{owner}/{repo}/tags")
     return [{"name": t["name"], "sha": t["commit"]["sha"][:7]} for t in raw]
 
 
-def get_repo_meta(repo_url: str, token: str = None) -> dict:
+def get_repo_meta(repo_url: str) -> dict:
     owner, repo = _gh_owner_repo(repo_url)
-    data = _gh_get(f"/repos/{owner}/{repo}", token)
+    data = _gh_get(f"/repos/{owner}/{repo}")
     if not isinstance(data, dict):
         return {}
     return {
