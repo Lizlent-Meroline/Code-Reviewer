@@ -36,8 +36,9 @@ def analyze_file(file_meta: dict) -> dict:
 def run(repo_url: str, branch: str = None) -> dict:
     repo_path = clone_repo(repo_url)
     all_branches = get_branches(repo_path)
+    branch_names = [b["name"] for b in all_branches]
 
-    target_branch = branch if branch in all_branches else all_branches[0]
+    target_branch = branch if branch in branch_names else all_branches[0]["name"]
     checkout_branch(repo_path, target_branch)
 
     return _build_report(repo_url, repo_path, target_branch, all_branches)
@@ -49,10 +50,12 @@ def run_branch_switch(repo_url: str, branch: str) -> dict:
     repo_path = os.path.join("repos", repo_name)
 
     all_branches = get_branches(repo_path)
-    target_branch = branch if branch in all_branches else all_branches[0]
+    branch_names = [b["name"] for b in all_branches]
+
+    target_branch = branch if branch in branch_names else all_branches[0]["name"]
     checkout_branch(repo_path, target_branch)
 
-    return _build_report(repo_url, repo_path, target_branch, all_branches, token=None, skip_gh_api=True)
+    return _build_report(repo_url, repo_path, target_branch, all_branches, skip_gh_api=True)
 
 
 def _build_report(repo_url, repo_path, target_branch, all_branches, skip_gh_api=False) -> dict:
