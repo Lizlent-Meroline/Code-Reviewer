@@ -16,7 +16,7 @@ SKIP_DIRS = {
     "dist", "build", ".next", "vendor", "target",
 }
 
-MAX_FILES = 2000
+MAX_FILES = 10000  # Increased from 2000
 
 
 def classify_file(file_path: str) -> str:
