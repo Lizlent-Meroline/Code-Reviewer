@@ -7,101 +7,119 @@ import git
 #  Git local helpers 
 
 def clone_repo(repo_url: str, dest: str = "repos") -> str:
-    """Clone or fetch a GitHub repository to local disk using shallow clone for speed."""
+    """Clone or reuse a GitHub repository using a fast single-branch shallow clone."""
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
     repo_path = os.path.join(dest, repo_name)
     os.makedirs(dest, exist_ok=True)
 
     if os.path.exists(repo_path):
         try:
-            print(f"[github] Updating {repo_path}...")
-            repo = git.Repo(repo_path)
-            
-            # Fetch all branches shallow
-            repo.remotes.origin.fetch("--depth=1", "--no-tags", "--all")
-            print(f"[github] Updated.")
+            # Validate it's a real repo — if so, reuse it as-is (already cloned)
+            git.Repo(repo_path)
+            print(f"[github] Reusing cached repo: {repo_path}")
             return repo_path
         except Exception as e:
-            print(f"[github] Update failed ({e}), re-cloning...")
+            print(f"[github] Cached repo invalid ({e}), re-cloning...")
             shutil.rmtree(repo_path)
 
-    print(f"[github] Shallow cloning {repo_url}...")
-    
-    # Shallow clone with all branches
-    # Use git command directly for better control
+    print(f"[github] Shallow cloning {repo_url} (single branch)...")
     try:
-        # Clone with depth 1 and all branches
+        # depth=1 + single branch = fastest possible clone (no history, no other branches)
         git.Git(dest).clone(
             repo_url,
             repo_name,
-            depth=1,
-            no_single_branch=True,  # Fetch all branches
-            no_tags=True,
+            "--depth=1",
+            "--no-tags",
+            "--single-branch",
+            "--filter=blob:none",  # skip large blobs until needed (partial clone)
         )
-    except Exception as e:
-        print(f"[github] Clone failed: {e}")
-        raise
-    
-    print(f"[github] Done.")
+    except git.GitCommandError:
+        # --filter may not be supported on older git, fall back without it
+        print(f"[github] Retrying without partial clone filter...")
+        git.Git(dest).clone(
+            repo_url,
+            repo_name,
+            "--depth=1",
+            "--no-tags",
+            "--single-branch",
+        )
+
+    print(f"[github] Clone done.")
     return repo_path
 
 
 def get_branches(repo_path: str) -> list[dict]:
-    """Return all remote branches with merge status relative to default branch."""
+    """Return all remote branches by querying the remote (no full fetch needed)."""
     repo = git.Repo(repo_path)
 
-    # get default branch (HEAD -> main/master/etc)
+    # Get default branch
     try:
         default = repo.remotes.origin.refs["HEAD"].reference.name.replace("origin/", "")
     except Exception:
         default = "main"
 
-    # For shallow clones, we can't reliably check merge status
-    # So we'll mark all non-default branches as unmerged
+    # Use ls-remote to list all remote branches without fetching them
+    try:
+        raw = repo.git.ls_remote("--heads", "origin")
+        branches = []
+        for line in raw.strip().splitlines():
+            if not line:
+                continue
+            sha, ref = line.split("\t", 1)
+            name = ref.replace("refs/heads/", "")
+            branches.append({
+                "name": name,
+                "merged": name == default,
+                "is_default": name == default,
+                "sha": sha[:7],
+            })
+        branches.sort(key=lambda b: (not b["is_default"], b["name"]))
+        return branches
+    except Exception:
+        pass
+
+    # Fallback: use already-fetched remote refs
     branches = []
     for ref in repo.remotes.origin.refs:
         if ref.name.endswith("/HEAD"):
             continue
         name = ref.name.replace("origin/", "")
-        
         branches.append({
             "name": name,
-            "merged": name == default,  # Simplified for shallow clones
+            "merged": name == default,
             "is_default": name == default,
             "sha": ref.commit.hexsha[:7] if ref.commit else "",
         })
-
-    # sort: default first, then alphabetically
     branches.sort(key=lambda b: (not b["is_default"], b["name"]))
     return branches
 
 
 def checkout_branch(repo_path: str, branch: str):
-    """Checkout a specific branch in the local repository."""
+    """Checkout a branch, fetching it shallow from origin if not already local."""
     repo = git.Repo(repo_path)
+
+    # Already on this branch?
     try:
-        # First, try to checkout if branch exists locally
-        try:
-            repo.git.checkout(branch)
-            print(f"[github] Checked out: {branch}")
+        if repo.active_branch.name == branch:
+            print(f"[github] Already on: {branch}")
             return
-        except git.GitCommandError:
-            pass
-        
-        # Branch doesn't exist locally, fetch it shallow
-        print(f"[github] Fetching branch {branch}...")
-        try:
-            # Fetch the specific branch shallow
-            repo.remotes.origin.fetch(f"refs/heads/{branch}:refs/remotes/origin/{branch}", depth=1)
-            # Now checkout
-            repo.git.checkout("-B", branch, f"origin/{branch}")
-            print(f"[github] Checked out: {branch}")
-        except git.GitCommandError as e:
-            # If that fails, try a simpler approach
-            print(f"[github] Fetch failed, trying direct checkout...")
-            repo.git.checkout("-B", branch, f"origin/{branch}")
-            print(f"[github] Checked out: {branch}")
-            
+    except TypeError:
+        pass  # detached HEAD
+
+    # Try local checkout first
+    try:
+        repo.git.checkout(branch)
+        print(f"[github] Checked out local: {branch}")
+        return
+    except git.GitCommandError:
+        pass
+
+    # Fetch only this branch shallow, then checkout
+    print(f"[github] Fetching branch '{branch}' shallow...")
+    try:
+        repo.git.fetch("origin", f"refs/heads/{branch}:refs/remotes/origin/{branch}", "--depth=1", "--no-tags")
+        repo.git.checkout("-B", branch, f"origin/{branch}")
+        print(f"[github] Checked out: {branch}")
     except git.GitCommandError as e:
         print(f"[github] Checkout error: {e}")
         raise RuntimeError(f"Could not checkout branch '{branch}': {e}")
