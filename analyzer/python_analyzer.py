@@ -1,7 +1,6 @@
 import ast
-from analyzer.base import BaseAnalyzer
 
-class PythonAnalyzer(BaseAnalyzer):
+class PythonAnalyzer:
     def analyze(self, file_path):
         issues = []
 
