@@ -14,9 +14,12 @@ DOCS_EXTENSIONS = {
 SKIP_DIRS = {
     "node_modules", ".git", "__pycache__", ".venv", "venv",
     "dist", "build", ".next", "vendor", "target",
+    "site-packages", "lib64", "bin", "include",
+    ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    "eggs", ".eggs", "htmlcov", ".coverage",
 }
 
-MAX_FILES = 10000  # Increased from 2000
+MAX_FILES = 10000  
 
 
 def classify_file(file_path: str) -> str:
@@ -44,7 +47,14 @@ def get_all_files(repo_path: str) -> list[dict]:
     print(f"[parser] Scanning: {repo_path}")
 
     for root, dirs, files in os.walk(repo_path):
+        # Prune dirs in-place so os.walk won't descend into them
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+
+        # Belt-and-suspenders: skip this root if any path segment is a skip dir
+        rel_root = os.path.relpath(root, repo_path)
+        if rel_root != "." and any(part in SKIP_DIRS for part in rel_root.split(os.sep)):
+            dirs.clear()  # also stop descending further
+            continue
 
         for filename in files:
             full_path = os.path.join(root, filename)
