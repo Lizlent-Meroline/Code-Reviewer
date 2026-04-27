@@ -17,8 +17,8 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
             print(f"[github] Updating {repo_path}...")
             repo = git.Repo(repo_path)
             
-            # Fast fetch: only fetch what we need
-            repo.remotes.origin.fetch("--depth=1", "--no-tags")
+            # Fetch all branches shallow
+            repo.remotes.origin.fetch("--depth=1", "--no-tags", "--all")
             print(f"[github] Updated.")
             return repo_path
         except Exception as e:
@@ -27,15 +27,20 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
 
     print(f"[github] Shallow cloning {repo_url}...")
     
-    # Shallow clone: only latest commit, no history, no tags
-    # This is 10-50x faster than full clone for large repos
-    git.Repo.clone_from(
-        repo_url,
-        repo_path,
-        depth=1,              # Only latest commit
-        single_branch=False,  # Get all branches (but shallow)
-        no_tags=True,         # Skip tags for speed
-    )
+    # Shallow clone with all branches
+    # Use git command directly for better control
+    try:
+        # Clone with depth 1 and all branches
+        git.Git(dest).clone(
+            repo_url,
+            repo_name,
+            depth=1,
+            no_single_branch=True,  # Fetch all branches
+            no_tags=True,
+        )
+    except Exception as e:
+        print(f"[github] Clone failed: {e}")
+        raise
     
     print(f"[github] Done.")
     return repo_path
@@ -75,17 +80,31 @@ def checkout_branch(repo_path: str, branch: str):
     """Checkout a specific branch in the local repository."""
     repo = git.Repo(repo_path)
     try:
-        # For shallow clones, we need to fetch the branch first if not present
+        # First, try to checkout if branch exists locally
         try:
-            repo.git.checkout("-B", branch, f"origin/{branch}")
-        except git.GitCommandError:
-            # Branch not fetched yet, fetch it shallow
-            print(f"[github] Fetching branch {branch}...")
-            repo.remotes.origin.fetch(f"{branch}:{branch}", depth=1)
             repo.git.checkout(branch)
+            print(f"[github] Checked out: {branch}")
+            return
+        except git.GitCommandError:
+            pass
+        
+        # Branch doesn't exist locally, fetch it shallow
+        print(f"[github] Fetching branch {branch}...")
+        try:
+            # Fetch the specific branch shallow
+            repo.remotes.origin.fetch(f"refs/heads/{branch}:refs/remotes/origin/{branch}", depth=1)
+            # Now checkout
+            repo.git.checkout("-B", branch, f"origin/{branch}")
+            print(f"[github] Checked out: {branch}")
+        except git.GitCommandError as e:
+            # If that fails, try a simpler approach
+            print(f"[github] Fetch failed, trying direct checkout...")
+            repo.git.checkout("-B", branch, f"origin/{branch}")
+            print(f"[github] Checked out: {branch}")
+            
     except git.GitCommandError as e:
+        print(f"[github] Checkout error: {e}")
         raise RuntimeError(f"Could not checkout branch '{branch}': {e}")
-    print(f"[github] Checked out: {branch}")
 
 
 def get_local_tags(repo_path: str) -> list[dict]:
