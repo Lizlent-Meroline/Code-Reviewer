@@ -1,8 +1,6 @@
 import re
-from analyzer.base import BaseAnalyzer
 
-
-class GoAnalyzer(BaseAnalyzer):
+class GoAnalyzer:
     def analyze(self, file_path):
         issues = []
 
