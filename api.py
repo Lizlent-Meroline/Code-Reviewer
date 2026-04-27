@@ -20,6 +20,7 @@ os.makedirs(HISTORY_DIR, exist_ok=True)
 
 
 def history_file(user_id: str) -> str:
+    """Get the history file path for a specific user."""
     return os.path.join(HISTORY_DIR, f"{user_id}.json")
 
 
@@ -53,6 +54,7 @@ class AuthRequest(BaseModel):
 
 @app.post("/register")
 def register(req: AuthRequest):
+    """Register a new user account."""
     try:
         user = create_user(req.email, req.password)
     except Exception:
@@ -62,6 +64,7 @@ def register(req: AuthRequest):
 
 @app.post("/login")
 def login(req: AuthRequest):
+    """Authenticate user and return JWT token."""
     user = authenticate(req.email, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
