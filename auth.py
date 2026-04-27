@@ -3,7 +3,6 @@ Self-contained auth: SQLite users, bcrypt passwords, JWT sessions.
 """
 import os
 import sqlite3
-import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -13,17 +12,19 @@ import jwt
 from fastapi import Header
 
 DB_PATH    = "users.db"
-JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+JWT_SECRET = os.getenv("JWT_SECRET", "code-reviewer-default-secret-change-in-production")
 JWT_EXPIRY = 30  # days
 
 
 def get_db():
+    """Get SQLite database connection with row factory."""
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     return con
 
 
 def init_db():
+    """Initialize SQLite database with users table."""
     with get_db() as con:
         con.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -39,14 +40,17 @@ init_db()
 
 
 def hash_password(plain: str) -> str:
+    """Hash password using bcrypt."""
     return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    """Verify password against bcrypt hash."""
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def create_user(email: str, password: str) -> dict:
+    """Create new user account with hashed password."""
     user_id = str(uuid.uuid4())
     hashed  = hash_password(password)
     with get_db() as con:
@@ -58,6 +62,7 @@ def create_user(email: str, password: str) -> dict:
 
 
 def authenticate(email: str, password: str) -> Optional[dict]:
+    """Authenticate user with email and password."""
     with get_db() as con:
         row = con.execute("SELECT * FROM users WHERE email = ?", (email.lower(),)).fetchone()
     if row and verify_password(password, row["password"]):
@@ -66,6 +71,7 @@ def authenticate(email: str, password: str) -> Optional[dict]:
 
 
 def make_token(user_id: str, email: str) -> str:
+    """Generate JWT token for authenticated user."""
     payload = {
         "sub":   user_id,
         "email": email,
