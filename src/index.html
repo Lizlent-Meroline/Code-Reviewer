@@ -84,7 +84,19 @@
     </div>
 
     <!-- Error banner -->
-    <div id="errorBox" class="hidden mx-4 mt-3 bg-red-900/40 border border-red-500 text-red-300 px-4 py-2 rounded-lg shrink-0"></div>
+    <div id="errorBox" class="hidden mx-4 mt-3 bg-red-100 border border-red-500 text-black px-4 py-2 rounded-lg shrink-0 font-medium"></div>
+
+    <!-- Progress bar -->
+    <div id="progressBar" class="hidden mx-4 mt-3 bg-slate-800 border border-slate-700 rounded-lg p-4 shrink-0">
+      <div class="flex items-center justify-between mb-2">
+        <span id="progressText" class="text-sm text-slate-300">Initializing...</span>
+        <span id="progressPercent" class="text-sm text-blue-400 font-bold">0%</span>
+      </div>
+      <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+        <div id="progressFill" class="bg-blue-500 h-2 transition-all duration-300" style="width: 0%"></div>
+      </div>
+      <div id="progressDetails" class="text-xs text-slate-500 mt-2"></div>
+    </div>
 
     <!-- Scrollable content -->
     <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
@@ -102,7 +114,17 @@
         <div id="results" class="hidden flex flex-col gap-4">
 
           <!-- Repo meta -->
-          <div id="metaCard" class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-wrap gap-4 items-start"></div>
+          <div id="metaCard" class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-wrap gap-4 items-start justify-between">
+            <div id="metaContent" class="flex-1"></div>
+            <div class="flex gap-2">
+              <button onclick="exportReport('json')" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg transition">
+                📥 Export JSON
+              </button>
+              <button onclick="exportReport('pdf')" class="text-xs px-3 py-1.5 rounded-lg transition" style="background-color:#1e3a5f;color:#ffffff;" onmouseover="this.style.backgroundColor='#1a3354'" onmouseout="this.style.backgroundColor='#1e3a5f'">
+                📄 Export PDF
+              </button>
+            </div>
+          </div>
 
           <!-- Summary stats -->
           <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -192,32 +214,136 @@
   .active-nav  { background: #1e293b; color: white; }
   .active-tab  { background: #1e293b; color: white; border: 1px solid #334155; border-bottom: none; }
 
-  /* Light mode overrides */
-  html.light body                          { background: #f1f5f9; color: #0f172a; }
-  html.light aside                         { background: #e2e8f0; border-color: #cbd5e1; }
-  html.light .bg-slate-950                 { background: #e2e8f0 !important; }
-  html.light .bg-slate-800                 { background: #f8fafc !important; }
-  html.light .bg-slate-700                 { background: #e2e8f0 !important; }
-  html.light .border-slate-800            { border-color: #cbd5e1 !important; }
-  html.light .border-slate-700            { border-color: #94a3b8 !important; }
-  html.light .text-slate-100              { color: #0f172a !important; }
-  html.light .text-slate-400              { color: #475569 !important; }
+  /* Light mode overrides - Better contrast and appealing colors */
+  html.light body                          { background: #f8fafc; color: #1e293b; }
+  html.light aside                         { background: #ffffff; border-color: #e2e8f0; box-shadow: 2px 0 8px rgba(0,0,0,0.05); }
+  html.light .bg-slate-950                 { background: #ffffff !important; border-bottom: 1px solid #e2e8f0; }
+  html.light .bg-slate-800                 { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+  html.light .bg-slate-700                 { background: #f1f5f9 !important; }
+  html.light .border-slate-800            { border-color: #e2e8f0 !important; }
+  html.light .border-slate-700            { border-color: #cbd5e1 !important; }
+  html.light .text-slate-100              { color: #1e293b !important; }
+  html.light .text-slate-400              { color: #64748b !important; }
   html.light .text-slate-500              { color: #64748b !important; }
   html.light .text-slate-600              { color: #475569 !important; }
-  html.light .text-white                  { color: #0f172a !important; }
-  html.light .text-slate-200              { color: #1e293b !important; }
-  html.light .text-slate-300              { color: #334155 !important; }
+  html.light .text-white                  { color: #0f172a !important; font-weight: 500; }
+  html.light .text-slate-200              { color: #334155 !important; }
+  html.light .text-slate-300              { color: #475569 !important; }
   html.light .placeholder-slate-500::placeholder { color: #94a3b8; }
-  html.light input, html.light select     { background: #f1f5f9 !important; color: #0f172a !important; border-color: #94a3b8 !important; }
-  html.light .active-nav                  { background: #cbd5e1; color: #0f172a; }
-  html.light .active-tab                  { background: #cbd5e1; color: #0f172a; border-color: #94a3b8; }
-  html.light .hover\:bg-slate-800:hover   { background: #e2e8f0 !important; }
-  html.light #themeToggle                 { background: #cbd5e1 !important; color: #0f172a !important; }
+  html.light input, html.light select     { background: #ffffff !important; color: #0f172a !important; border-color: #cbd5e1 !important; }
+  html.light .active-nav                  { background: #3b82f6; color: #ffffff !important; }
+  html.light .active-tab                  { background: #ffffff; color: #3b82f6 !important; border-color: #3b82f6; font-weight: 600; }
+  html.light .hover\:bg-slate-800:hover   { background: #f1f5f9 !important; }
+  html.light #themeToggle                 { background: #3b82f6 !important; color: #ffffff !important; }
+  
+  /* Status colors - Blue shades instead of green/yellow, remove navy */
+  html.light .text-blue-400               { color: #2563eb !important; }
+  html.light .text-blue-300               { color: #3b82f6 !important; }
+  html.light .text-green-400              { color: #0ea5e9 !important; }  /* Sky blue instead of green */
+  html.light .text-yellow-400             { color: #f97316 !important; }  /* Orange instead of yellow */
+  html.light .text-red-400                { color: #dc2626 !important; }
+  html.light .text-sky-400                { color: #0284c7 !important; }
+  html.light .text-purple-400             { color: #9333ea !important; }
+  html.light .text-yellow-300             { color: #f97316 !important; }  /* Orange */
+  
+  /* Background colors - Blue shades */
+  html.light .bg-green-900\/20            { background: #dbeafe !important; }  /* Light blue */
+  html.light .bg-yellow-900\/20           { background: #fed7aa !important; }  /* Light orange */
+  html.light .bg-sky-900\/20              { background: #e0f2fe !important; }
+  html.light .bg-blue-700                 { background: #1d4ed8 !important; }
+  
+  /* Border colors - Blue shades */
+  html.light .border-green-700\/40        { border-color: #93c5fd !important; }  /* Light blue */
+  html.light .border-yellow-600\/50       { border-color: #fdba74 !important; }  /* Light orange */
+  html.light .border-sky-700\/40          { border-color: #7dd3fc !important; }
+  
+  /* Code highlighting */
+  html.light code                         { background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; }
+  
+  /* Progress bar */
+  html.light #progressBar                 { background: #ffffff !important; border-color: #e2e8f0 !important; }
+  html.light #progressFill                { background: #3b82f6 !important; }
+  html.light #progressText                { color: #1e293b !important; }
+  html.light #progressDetails             { color: #64748b !important; }
+  
+  /* Buttons */
+  html.light .bg-green-600                { background: #0ea5e9 !important; }  /* Sky blue */
+  html.light .hover\:bg-green-500:hover   { background: #0284c7 !important; }
+  html.light .bg-red-600                  { background: #dc2626 !important; }
+  html.light .hover\:bg-red-500:hover     { background: #b91c1c !important; }
+
 </style>
 
 <script>
   let currentData = null;
   let currentUrl  = null;
+  let ws = null;
+  let clientId = null;
+
+  // Generate unique client ID
+  function generateClientId() {
+    return 'client_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+  }
+
+  // WebSocket connection
+  function connectWebSocket() {
+    if (!clientId) clientId = generateClientId();
+    
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/${clientId}`;
+      
+      ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('[WebSocket] Connected');
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        updateProgress(data);
+      };
+      
+      ws.onerror = (error) => {
+        console.warn('[WebSocket] Not available, progress updates disabled');
+      };
+      
+      ws.onclose = () => {
+        console.log('[WebSocket] Disconnected');
+        // Don't reconnect if server doesn't support WebSocket
+      };
+    } catch (e) {
+      console.warn('[WebSocket] Not supported, progress updates disabled');
+    }
+  }
+
+  // Update progress UI
+  function updateProgress(data) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressFill = document.getElementById('progressFill');
+    const progressDetails = document.getElementById('progressDetails');
+    
+    progressBar.classList.remove('hidden');
+    progressText.textContent = data.message || 'Processing...';
+    progressPercent.textContent = `${data.progress || 0}%`;
+    progressFill.style.width = `${data.progress || 0}%`;
+    
+    if (data.total && data.completed) {
+      progressDetails.textContent = `${data.completed} / ${data.total} files`;
+    }
+    
+    // Hide progress bar when complete
+    if (data.stage === 'complete') {
+      setTimeout(() => {
+        progressBar.classList.add('hidden');
+      }, 2000);
+    }
+  }
+
+  // Connect on page load
+  connectWebSocket();
 
   // Auth state
   let authToken = localStorage.getItem('token') || null;
@@ -301,6 +427,40 @@
     setUser(null);
   }
 
+  // Export report
+  async function exportReport(format) {
+    if (!currentData) {
+      showError('No analysis data to export');
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/export/${format}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentData)
+      });
+      
+      if (!res.ok) {
+        showError(`Export failed: ${res.status}`);
+        return;
+      }
+      
+      // Download file
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analysis-report.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      showError('Export failed');
+    }
+  }
+
   // Theme toggle
   function toggleTheme() {
     const isLight = document.documentElement.classList.toggle('light');
@@ -369,6 +529,7 @@
     currentUrl = url;
     setLoading(true);
     showError('');
+    document.getElementById('progressBar').classList.remove('hidden');
 
     try {
       const token = getToken();
@@ -378,7 +539,7 @@
       const res = await fetch('/analyze', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ url, branch })
+        body: JSON.stringify({ url, branch, client_id: clientId })
       });
       if (!res.ok) { showError(`Server error ${res.status}`); return; }
       currentData = await res.json();
@@ -397,7 +558,7 @@
     document.getElementById('repoPanel').classList.remove('hidden');
 
     // Meta card
-    const mc = document.getElementById('metaCard');
+    const mc = document.getElementById('metaContent');
     mc.innerHTML = d.meta && d.meta.full_name ? `
       <div class="flex-1">
         <a href="${d.meta.url}" target="_blank" class="text-blue-400 font-bold hover:underline">${d.meta.full_name}</a>
