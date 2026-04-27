@@ -81,7 +81,7 @@ def clear_history():
 
 @app.get("/")
 def home():
-    return FileResponse("index.html")
+    return FileResponse("src/index.html")
 
 
 @app.get("/health")
