@@ -1,5 +1,4 @@
 import os
-from analyzer.base import BaseAnalyzer
 
 def too_big(file_path, limit_kb=500):
     try:
@@ -8,7 +7,7 @@ def too_big(file_path, limit_kb=500):
         return False
 
 
-class GenericAnalyzer(BaseAnalyzer):
+class GenericAnalyzer:
     def analyze(self, file_path):
         issues = []
 
