@@ -17,16 +17,20 @@ EXTENSION_MAP = {
     ".sh": "bash",
     ".bash": "bash",
     ".zsh": "bash",
+    ".html": "html",
+    ".htm": "html",
+    ".css": "css",
 }
 
 SPECIAL_FILES = {
     "Dockerfile": "docker",
+    "dockerfile": "docker",
     "Makefile": "make",
     "CMakeLists.txt": "cmake",
 }
 
 
-def detect_language(file_path):
+def detect_language(file_path, ext_hint: str = ""):
     """Detect programming language from file path and content."""
     filename = os.path.basename(file_path)
 
@@ -34,12 +38,12 @@ def detect_language(file_path):
     if filename in SPECIAL_FILES:
         return SPECIAL_FILES[filename]
 
-    # Layer 2: extension (covers 95% of cases, very fast)
-    _, ext = os.path.splitext(file_path)
+    # Layer 2: use pre-computed ext hint if provided, else extract from path
+    ext = (ext_hint or os.path.splitext(file_path)[1]).lower()
     if ext in EXTENSION_MAP:
         return EXTENSION_MAP[ext]
 
-    # Layer 3: content-based fallback (only for unknown extensions)
+    # Layer 3: content-based fallback
     return detect_by_content(file_path)
 
 
