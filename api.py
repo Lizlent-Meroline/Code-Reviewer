@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from main import run, run_branch_switch
+from main import run, run_branch_switch, run_tag_switch
 from analyzer.github import clone_repo, get_branches
 from analyzer.pr_diff import get_changed_files, get_pr_diff_stats, filter_files_by_diff
 from auth import get_user_id, create_user, authenticate, make_token
@@ -148,10 +148,21 @@ class SwitchRequest(BaseModel):
     branch: str
 
 
+class TagRequest(BaseModel):
+    url: str
+    tag: str
+
+
 @app.post("/switch-branch")
 def switch_branch(req: SwitchRequest):
     """Switch to a different branch and re-analyze without re-fetching GitHub metadata."""
     return run_branch_switch(req.url, req.branch)
+
+
+@app.post("/switch-tag")
+def switch_tag(req: TagRequest):
+    """Checkout a tag and re-analyze files without re-fetching GitHub metadata."""
+    return run_tag_switch(req.url, req.tag)
 
 
 @app.post("/branches")
