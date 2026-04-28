@@ -25,6 +25,24 @@
       <button onclick="setView('history')" id="nav-history"
         class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">🕓 History</button>
     </nav>
+
+    <!-- Repo info (visible after analysis) -->
+    <div id="repoPanel" class="hidden p-3 flex flex-col gap-3 border-b border-slate-800">
+
+      <!-- Branches -->
+      <div>
+        <p class="text-xs text-slate-500 uppercase mb-1">Branches</p>
+        <div id="branchList" class="flex flex-col gap-1 max-h-40 overflow-y-auto"></div>
+      </div>
+
+      <!-- Tags -->
+      <div>
+        <p class="text-xs text-slate-500 uppercase mb-1">Tags</p>
+        <div id="tagList" class="flex flex-col gap-1 max-h-32 overflow-y-auto text-slate-300"></div>
+      </div>
+
+    </div>
+
     <!-- User auth section -->
     <div class="mt-auto p-3 border-t border-slate-800">
       <!-- Guest state -->
@@ -43,23 +61,6 @@
           Sign out
         </button>
       </div>
-    </div>
-
-    <!-- Repo info (visible after analysis) -->
-    <div id="repoPanel" class="hidden p-3 flex flex-col gap-3">
-
-      <!-- Branches -->
-      <div>
-        <p class="text-xs text-slate-500 uppercase mb-1">Branches</p>
-        <div id="branchList" class="flex flex-col gap-1 max-h-40 overflow-y-auto"></div>
-      </div>
-
-      <!-- Tags -->
-      <div>
-        <p class="text-xs text-slate-500 uppercase mb-1">Tags</p>
-        <div id="tagList" class="flex flex-col gap-1 max-h-32 overflow-y-auto text-slate-300"></div>
-      </div>
-
     </div>
   </aside>
 
@@ -144,28 +145,28 @@
               <p class="text-slate-400 text-xs">Docs</p>
               <p id="sumDocs" class="text-sky-400 font-bold">0</p>
             </div>
-            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
+            <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 cursor-pointer hover:border-yellow-500 transition" onclick="showTab('warnings')">
               <p class="text-slate-400 text-xs">Issues</p>
               <p id="sumIssues" class="text-yellow-400 font-bold">0</p>
             </div>
           </div>
 
           <!-- File tabs -->
-          <div class="flex gap-1 border-b border-slate-700">
-            <button onclick="showTab('code')"    id="tab-code"    class="inner-tab active-tab px-4 py-2 rounded-t-lg">💻 Code</button>
-            <button onclick="showTab('docs')"    id="tab-docs"    class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📄 Docs</button>
-            <button onclick="showTab('other')"   id="tab-other"   class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📦 Other</button>
-            <button onclick="showTab('commits')" id="tab-commits" class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔖 Commits</button>
-            <button onclick="showTab('prs')"     id="tab-prs"     class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔀 PRs</button>
-            <button onclick="showTab('issues')"  id="tab-issues"  class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🐛 Issues</button>
+          <div class="flex gap-1 border-b border-slate-700 flex-wrap">
+            <button onclick="showTab('code')"       id="tab-code"       class="inner-tab active-tab px-4 py-2 rounded-t-lg">💻 Code</button>
+            <button onclick="showTab('warnings')"   id="tab-warnings"   class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">⚠️ Code Issues</button>
+            <button onclick="showTab('docs')"       id="tab-docs"       class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📄 Docs</button>
+            <button onclick="showTab('other')"      id="tab-other"      class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📦 Other</button>
+            <button onclick="showTab('commits')"    id="tab-commits"    class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔖 Commits</button>
+            <button onclick="showTab('prs')"        id="tab-prs"        class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔀 PRs</button>
           </div>
 
-          <div id="tab-code-content"    class="flex flex-col gap-2"></div>
-          <div id="tab-docs-content"    class="hidden flex flex-col gap-2"></div>
-          <div id="tab-other-content"   class="hidden flex flex-col gap-2"></div>
-          <div id="tab-commits-content" class="hidden flex flex-col gap-2"></div>
-          <div id="tab-prs-content"     class="hidden flex flex-col gap-2"></div>
-          <div id="tab-issues-content"  class="hidden flex flex-col gap-2"></div>
+          <div id="tab-code-content"     class="flex flex-col gap-2"></div>
+          <div id="tab-warnings-content" class="hidden flex flex-col gap-2"></div>
+          <div id="tab-docs-content"     class="hidden flex flex-col gap-2"></div>
+          <div id="tab-other-content"    class="hidden flex flex-col gap-2"></div>
+          <div id="tab-commits-content"  class="hidden flex flex-col gap-2"></div>
+          <div id="tab-prs-content"      class="hidden flex flex-col gap-2"></div>
 
         </div>
       </div>
@@ -520,6 +521,34 @@
     }
   }
 
+  // Switch to a tag (checkout tag commit, re-analyze files)
+  async function switchTag(tag) {
+    const url = currentUrl || document.getElementById('repoUrl').value.trim();
+    if (!url) { showError('No repo loaded yet.'); return; }
+    setLoading(true);
+    showError('');
+    try {
+      const res = await fetch('/switch-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, tag })
+      });
+      if (!res.ok) { showError(`Server error ${res.status}`); return; }
+      const data = await res.json();
+      // Preserve meta/tags/PRs/issues
+      data.meta          = currentData.meta;
+      data.tags          = currentData.tags;
+      data.pull_requests = currentData.pull_requests;
+      data.issues        = currentData.issues;
+      currentData = data;
+      render(currentData);
+    } catch(e) {
+      showError('Tag switch failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Run analysis
   async function analyze(branchOverride) {
     const url    = document.getElementById('repoUrl').value.trim();
@@ -611,16 +640,32 @@
       dd.appendChild(opt);
     });
 
-    // Sidebar tags
+      // Sidebar tags
     const tl = document.getElementById('tagList');
-    tl.innerHTML = d.tags.length
-      ? d.tags.map(t => `<span class="text-xs text-slate-400 px-2 py-0.5">🏷 ${esc(t.name)}</span>`).join('')
-      : '<span class="text-xs text-slate-600 px-2">No tags</span>';
+    if (d.tags.length) {
+      tl.innerHTML = '';
+      d.tags.forEach(t => {
+        const isActive = d.branch === t.name;
+        const btn = document.createElement('button');
+        btn.className = `text-left px-2 py-1.5 rounded text-xs transition w-full flex items-center gap-1.5
+          ${isActive ? 'bg-purple-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+        btn.innerHTML = `
+          <span class="shrink-0">🏷</span>
+          <span class="truncate flex-1">${esc(t.name)}</span>
+          <span class="shrink-0 text-slate-500 font-mono">${esc(t.sha || '')}</span>`;
+        btn.title = `Tag: ${t.name} · ${t.sha || ''}`;
+        btn.onclick = () => switchTag(t.name);
+        tl.appendChild(btn);
+      });
+    } else {
+      tl.innerHTML = '<span class="text-xs text-slate-600 px-2">No tags</span>';
+    }
 
     // File tabs
     renderFileTab('code',  d.code);
     renderFileTab('docs',  d.docs);
     renderFileTab('other', d.other);
+    renderWarningsTab(d.code);
 
     // Commits
     renderList('commits', d.commits, c => `
@@ -644,21 +689,98 @@
         </div>
       </div>`);
 
-    // Issues
-    renderList('issues', d.issues, issue => `
-      <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-3 items-start">
-        <span class="shrink-0 ${issue.state==='open' ? 'text-red-400' : 'text-slate-500'}">
-          ${issue.state==='open' ? '🔴' : '⚫'}
-        </span>
-        <div class="flex-1 min-w-0">
-          <a href="${issue.url}" target="_blank" class="text-blue-400 hover:underline truncate block">#${issue.number} ${esc(issue.title)}</a>
-          <p class="text-slate-500 text-xs mt-0.5">${esc(issue.author)} · ${issue.created_at.slice(0,10)}
-            ${issue.labels.map(l=>`<span class="ml-1 bg-slate-700 px-1 rounded">${esc(l)}</span>`).join('')}
-          </p>
-        </div>
-      </div>`);
-
     showTab('code');
+
+    // Auto-switch to warnings tab if there are issues
+    if (d.summary && d.summary.issues > 0) {
+      showTab('warnings');
+    }
+  }
+
+  function renderWarningsTab(codeFiles) {
+    const c = document.getElementById('tab-warnings-content');
+    c.innerHTML = '';
+
+    // Collect all issues across all files
+    const allIssues = [];
+    (codeFiles || []).forEach(f => {
+      if (f.issues && f.issues.length) {
+        f.issues.forEach(issue => allIssues.push({ file: f.path, lang: f.language, issue }));
+      }
+    });
+
+    if (!allIssues.length) {
+      c.innerHTML = `<div class="flex flex-col items-center py-16 gap-3 text-slate-500">
+        <span class="text-4xl">✅</span>
+        <p>No code issues found!</p>
+      </div>`;
+      // Update tab badge
+      document.getElementById('tab-warnings').innerHTML = '⚠️ Code Issues';
+      return;
+    }
+
+    // Update tab badge with count
+    document.getElementById('tab-warnings').innerHTML = `⚠️ Code Issues <span class="ml-1 bg-yellow-700/60 text-yellow-300 text-xs px-1.5 py-0.5 rounded-full">${allIssues.length}</span>`;
+
+    // Search/filter bar
+    const filterBar = document.createElement('div');
+    filterBar.className = 'flex gap-2 items-center mb-1';
+    filterBar.innerHTML = `
+      <input id="issueSearch" type="text" placeholder="Filter issues or files..."
+        class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-xs"/>
+      <span class="text-slate-500 text-xs shrink-0" id="issueCount">${allIssues.length} issues in ${codeFiles.filter(f=>f.issues&&f.issues.length).length} files</span>`;
+    c.appendChild(filterBar);
+
+    // Group by file
+    const byFile = {};
+    allIssues.forEach(({ file, lang, issue }) => {
+      if (!byFile[file]) byFile[file] = { lang, issues: [] };
+      byFile[file].issues.push(issue);
+    });
+
+    const listContainer = document.createElement('div');
+    listContainer.className = 'flex flex-col gap-2';
+    listContainer.id = 'warningsList';
+    c.appendChild(listContainer);
+
+    function renderIssueList(filter = '') {
+      listContainer.innerHTML = '';
+      const fl = filter.toLowerCase();
+      let shown = 0;
+      Object.entries(byFile).forEach(([file, { lang, issues }]) => {
+        const matched = issues.filter(i =>
+          !fl || i.toLowerCase().includes(fl) || file.toLowerCase().includes(fl)
+        );
+        if (!matched.length) return;
+        shown += matched.length;
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800 border border-yellow-700/40 rounded-lg overflow-hidden';
+        card.innerHTML = `
+          <div class="flex items-center justify-between px-4 py-2 bg-yellow-900/20 cursor-pointer select-none"
+               onclick="this.nextElementSibling.classList.toggle('hidden')">
+            <span class="text-slate-200 text-xs truncate flex-1">${esc(file)}</span>
+            <div class="flex items-center gap-2 ml-2 shrink-0">
+              ${lang ? `<span class="text-slate-400 text-xs">${esc(lang)}</span>` : ''}
+              <span class="bg-yellow-700/50 text-yellow-300 text-xs px-2 py-0.5 rounded-full">${matched.length} issue${matched.length>1?'s':''}</span>
+              <span class="text-slate-400 text-xs">▼</span>
+            </div>
+          </div>
+          <ul class="px-4 py-2 flex flex-col gap-1.5">
+            ${matched.map((i, idx) => `
+              <li class="flex items-start gap-2 text-xs">
+                <span class="text-yellow-500 shrink-0 mt-0.5">${idx+1}.</span>
+                <span class="text-yellow-200">${esc(i)}</span>
+              </li>`).join('')}
+          </ul>`;
+        listContainer.appendChild(card);
+      });
+      document.getElementById('issueCount').textContent =
+        `${shown} issues in ${listContainer.children.length} files`;
+    }
+
+    renderIssueList();
+    document.getElementById('issueSearch').addEventListener('input', e => renderIssueList(e.target.value));
   }
 
   function renderFileTab(type, files) {
@@ -702,7 +824,7 @@
 
   //  tabs
   function showTab(tab) {
-    ['code','docs','other','commits','prs','issues'].forEach(t => {
+    ['code','warnings','docs','other','commits','prs'].forEach(t => {
       document.getElementById(`tab-${t}-content`).classList.toggle('hidden', t !== tab);
       const btn = document.getElementById(`tab-${t}`);
       btn.className = t === tab
