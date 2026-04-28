@@ -4,7 +4,7 @@ import requests
 import git
 
 
-#  Git local helpers 
+#  Git local helpers
 
 def clone_repo(repo_url: str, dest: str = "repos") -> str:
     """Clone or reuse a GitHub repository using a fast single-branch shallow clone."""
@@ -14,7 +14,6 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
 
     if os.path.exists(repo_path):
         try:
-            # Validate it's a real repo — if so, reuse it as-is (already cloned)
             git.Repo(repo_path)
             print(f"[github] Reusing cached repo: {repo_path}")
             return repo_path
@@ -24,24 +23,15 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
 
     print(f"[github] Shallow cloning {repo_url} (single branch)...")
     try:
-        # depth=1 + single branch = fastest possible clone (no history, no other branches)
         git.Git(dest).clone(
-            repo_url,
-            repo_name,
-            "--depth=1",
-            "--no-tags",
-            "--single-branch",
-            "--filter=blob:none",  # skip large blobs until needed (partial clone)
+            repo_url, repo_name,
+            "--depth=1", "--no-tags", "--single-branch", "--filter=blob:none",
         )
     except git.GitCommandError:
-        # --filter may not be supported on older git, fall back without it
         print(f"[github] Retrying without partial clone filter...")
         git.Git(dest).clone(
-            repo_url,
-            repo_name,
-            "--depth=1",
-            "--no-tags",
-            "--single-branch",
+            repo_url, repo_name,
+            "--depth=1", "--no-tags", "--single-branch",
         )
 
     print(f"[github] Clone done.")
@@ -52,13 +42,11 @@ def get_branches(repo_path: str) -> list[dict]:
     """Return all remote branches by querying the remote (no full fetch needed)."""
     repo = git.Repo(repo_path)
 
-    # Get default branch
     try:
         default = repo.remotes.origin.refs["HEAD"].reference.name.replace("origin/", "")
     except Exception:
         default = "main"
 
-    # Use ls-remote to list all remote branches without fetching them
     try:
         raw = repo.git.ls_remote("--heads", "origin")
         branches = []
@@ -98,7 +86,6 @@ def checkout_branch(repo_path: str, branch: str):
     """Checkout a branch, fetching it shallow from origin if not already local."""
     repo = git.Repo(repo_path)
 
-    # Already on this branch?
     try:
         if repo.active_branch.name == branch:
             print(f"[github] Already on: {branch}")
@@ -106,7 +93,6 @@ def checkout_branch(repo_path: str, branch: str):
     except TypeError:
         pass  # detached HEAD
 
-    # Try local checkout first
     try:
         repo.git.checkout(branch)
         print(f"[github] Checked out local: {branch}")
@@ -114,7 +100,6 @@ def checkout_branch(repo_path: str, branch: str):
     except git.GitCommandError:
         pass
 
-    # Fetch only this branch shallow, then checkout
     print(f"[github] Fetching branch '{branch}' shallow...")
     try:
         repo.git.fetch("origin", f"refs/heads/{branch}:refs/remotes/origin/{branch}", "--depth=1", "--no-tags")
@@ -125,19 +110,36 @@ def checkout_branch(repo_path: str, branch: str):
         raise RuntimeError(f"Could not checkout branch '{branch}': {e}")
 
 
+def checkout_tag(repo_path: str, tag: str):
+    """Checkout a specific tag (detached HEAD), fetching it if not present locally."""
+    repo = git.Repo(repo_path)
+
+    if tag not in [t.name for t in repo.tags]:
+        print(f"[github] Fetching tag '{tag}'...")
+        try:
+            repo.git.fetch("origin", f"refs/tags/{tag}:refs/tags/{tag}", "--depth=1")
+        except git.GitCommandError as e:
+            raise RuntimeError(f"Could not fetch tag '{tag}': {e}")
+
+    try:
+        repo.git.checkout(f"tags/{tag}")
+        print(f"[github] Checked out tag: {tag}")
+    except git.GitCommandError as e:
+        raise RuntimeError(f"Could not checkout tag '{tag}': {e}")
+
+
 def get_local_tags(repo_path: str) -> list[dict]:
     """Get all tags from the local repository."""
     repo = git.Repo(repo_path)
-    # Shallow clones don't have tags by default
     if not repo.tags:
         return []
     return [
         {
-            "name": tag.name,
-            "commit": str(tag.commit),
-            "message": str(tag.tag.message).strip() if hasattr(tag, "tag") and tag.tag else "",
+            "name": t.name,
+            "commit": str(t.commit),
+            "message": str(t.tag.message).strip() if hasattr(t, "tag") and t.tag else "",
         }
-        for tag in repo.tags
+        for t in repo.tags
     ]
 
 
@@ -145,9 +147,6 @@ def get_local_commits(repo_path: str, branch: str, limit: int = 30) -> list[dict
     """Get recent commits from a specific branch."""
     repo = git.Repo(repo_path)
     commits = []
-    
-    # For shallow clones, we only have 1 commit per branch
-    # Fetch more if needed
     try:
         for c in repo.iter_commits(branch, max_count=limit):
             commits.append({
@@ -157,9 +156,7 @@ def get_local_commits(repo_path: str, branch: str, limit: int = 30) -> list[dict
                 "date": c.committed_datetime.isoformat(),
             })
     except Exception:
-        # If we can't get commits, return empty
         pass
-    
     return commits
 
 
@@ -171,19 +168,27 @@ def _gh_owner_repo(repo_url: str):
     return parts[-2], parts[-1]
 
 
-def _gh_get(path: str) -> list | dict:
-    """Make paginated GET request to GitHub API."""
+def _gh_get(path: str, max_pages: int = 5) -> list | dict:
+    """Make paginated GET request to GitHub API with page limit."""
     headers = {"Accept": "application/vnd.github+json"}
     results = []
-    url = f"https://api.github.com{path}?per_page=50&page=1"
-    while url:
-        r = requests.get(url, headers=headers, timeout=10)
+    url = f"https://api.github.com{path}?per_page=100&page=1"
+    pages = 0
+    while url and pages < max_pages:
+        try:
+            r = requests.get(url, headers=headers, timeout=8)
+        except requests.Timeout:
+            break
+        if r.status_code == 403:
+            print("[github] API rate limit hit, returning partial results")
+            break
         if r.status_code != 200:
             return []
         data = r.json()
         if isinstance(data, list):
             results.extend(data)
             url = r.links.get("next", {}).get("url")
+            pages += 1
         else:
             return data
     return results
