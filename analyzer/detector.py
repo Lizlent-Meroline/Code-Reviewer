@@ -14,6 +14,9 @@ EXTENSION_MAP = {
     ".rb": "ruby",
     ".kt": "kotlin",
     ".swift": "swift",
+    ".sh": "bash",
+    ".bash": "bash",
+    ".zsh": "bash",
 }
 
 SPECIAL_FILES = {
@@ -50,6 +53,8 @@ def detect_by_content(file_path):
         # Quick substring checks (faster than regex)
         if "package main" in content or "func main()" in content:
             return "go"
+        if content.startswith("#!/bin/bash") or content.startswith("#!/bin/sh") or content.startswith("#!/usr/bin/env bash"):
+            return "bash"
         if "def " in content or "import " in content:
             return "python"
         if "public class" in content or "private class" in content:
