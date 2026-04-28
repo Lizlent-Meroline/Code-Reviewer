@@ -83,7 +83,18 @@ class PythonAnalyzer:
     def _check_function(self, node, issues):
         """Check a single function node."""
         if len(node.body) > 50:
-            issues.append(f"{node.name} too long")
-        
+            issues.append(f"Line {node.lineno}: {node.name}() is too long ({len(node.body)} lines)")
+
         if not ast.get_docstring(node):
-            issues.append(f"{node.name} missing docstring")
+            issues.append(f"Line {node.lineno}: {node.name}() missing docstring")
+
+        # Check for bare except
+        for child in ast.walk(node):
+            if isinstance(child, ast.ExceptHandler) and child.type is None:
+                issues.append(f"Line {getattr(child, 'lineno', '?')}: bare except clause in {node.name}()")
+                break
+
+        # Check for mutable default arguments
+        for default in node.args.defaults:
+            if isinstance(default, (ast.List, ast.Dict, ast.Set)):
+                issues.append(f"Line {node.lineno}: {node.name}() uses mutable default argument")
