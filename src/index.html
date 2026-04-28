@@ -6,6 +6,8 @@
   <title>GitHub AI Code Reviewer</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: 'class' }</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 dark:bg-slate-900 dark:text-slate-100 min-h-screen font-mono text-sm transition-colors duration-200">
 
@@ -24,6 +26,10 @@
         class="nav-btn active-nav text-left px-3 py-2 rounded-lg flex items-center gap-2">🔍 Analyze</button>
       <button onclick="setView('history')" id="nav-history"
         class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">🕓 History</button>
+      <button onclick="setView('analytics')" id="nav-analytics"
+        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">📊 Analytics</button>
+      <button onclick="setView('shared')" id="nav-shared"
+        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">🤝 Shared with Me</button>
     </nav>
 
     <!-- Repo info (visible after analysis) -->
@@ -124,6 +130,9 @@
               <button onclick="exportReport('pdf')" class="text-xs px-3 py-1.5 rounded-lg transition" style="background-color:#1e3a5f;color:#ffffff;" onmouseover="this.style.backgroundColor='#1a3354'" onmouseout="this.style.backgroundColor='#1e3a5f'">
                 📄 Export PDF
               </button>
+              <button id="shareBtn" onclick="openShareModal()" class="hidden text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg transition">
+                🤝 Share
+              </button>
             </div>
           </div>
 
@@ -172,12 +181,88 @@
       </div>
 
       <!-- History view -->
-      <div id="view-history" class="hidden flex flex-col gap-3">
+      <div id="view-history" class="flex flex-col gap-3" style="display:none">
         <div class="flex items-center justify-between">
           <h2 class="text-white font-bold text-base">Report History</h2>
           <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300 transition">🗑 Clear all</button>
         </div>
         <div id="historyList" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Analytics view -->
+      <div id="view-analytics" class="flex flex-col gap-4" style="display:none">
+        <h2 class="text-white font-bold text-base">📊 Analytics Dashboard</h2>
+
+        <!-- Sign-in prompt -->
+        <div id="analyticsSignInPrompt" class="hidden flex flex-col items-center py-16 gap-3 text-slate-500">
+          <span class="text-4xl">🔒</span>
+          <p class="text-sm">Sign in to view your analytics</p>
+          <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-500 transition text-white text-xs px-4 py-2 rounded-lg">Sign in / Sign up</button>
+        </div>
+
+        <!-- Empty state -->
+        <div id="analyticsEmpty" class="hidden flex flex-col items-center py-16 gap-3 text-slate-500">
+          <span class="text-4xl">📭</span>
+          <p class="text-sm">No analyses yet — run your first analysis to see data here</p>
+        </div>
+
+        <!-- Analytics content -->
+        <div id="analyticsContent" class="hidden flex flex-col gap-4">
+
+          <!-- Leaderboard -->
+          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <h3 class="text-white font-semibold mb-3 flex items-center gap-2">🏆 Repository Leaderboard</h3>
+            <div id="leaderboardError" class="hidden text-red-400 text-xs mb-2"></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs table-fixed">
+                <colgroup>
+                  <col style="width:10%">
+                  <col style="width:40%">
+                  <col style="width:15%">
+                  <col style="width:15%">
+                  <col style="width:20%">
+                </colgroup>
+                <thead>
+                  <tr class="text-slate-400 border-b border-slate-700">
+                    <th class="text-left py-2 pr-4">Rank</th>
+                    <th class="text-left py-2 pr-4">Repository</th>
+                    <th class="text-center py-2">Score</th>
+                    <th class="text-center py-2">Analyses</th>
+                    <th class="text-center py-2">Last Analyzed</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboardTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Trend chart -->
+          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 class="text-white font-semibold flex items-center gap-2">📈 Quality Trend</h3>
+              <select id="repoSelector" onchange="loadTrend(this.value)"
+                class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </select>
+            </div>
+            <div id="trendError" class="hidden text-red-400 text-xs mb-2"></div>
+            <div id="trendMessage" class="hidden text-slate-500 text-xs py-8 text-center"></div>
+            <div id="trendChartWrapper" class="relative" style="height:220px">
+              <canvas id="trendChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Shared with Me view -->
+      <div id="view-shared" class="flex flex-col gap-3" style="display:none">
+        <h2 class="text-white font-bold text-base">🤝 Shared with Me</h2>
+        <div id="sharedSignInPrompt" class="flex flex-col items-center py-16 gap-3 text-slate-500" style="display:none">
+          <span class="text-4xl">🔒</span>
+          <p class="text-sm">Sign in to view reports shared with you</p>
+          <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-500 transition text-white text-xs px-4 py-2 rounded-lg">Sign in / Sign up</button>
+        </div>
+        <div id="sharedList" class="flex flex-col gap-2"></div>
       </div>
 
     </div>
@@ -207,6 +292,24 @@
       <p id="authError" class="text-red-400 text-xs hidden"></p>
       <button id="authSubmitBtn" onclick="submitAuth()"
         class="bg-blue-600 hover:bg-blue-500 transition text-white font-semibold py-2 rounded-lg text-sm">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share modal -->
+<div id="shareModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+  <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h2 class="text-white font-bold text-base">🤝 Share Report</h2>
+      <button onclick="closeShareModal()" class="text-slate-500 hover:text-white transition text-lg">✕</button>
+    </div>
+    <p class="text-slate-400 text-xs">Enter email addresses of teammates to share this report with.</p>
+    <div class="flex flex-col gap-2">
+      <input id="shareEmailsInput" type="text" placeholder="alice@example.com, bob@example.com"
+        class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"/>
+      <p id="shareError" class="text-red-400 text-xs hidden"></p>
+      <button onclick="submitShare()"
+        class="bg-purple-600 hover:bg-purple-500 transition text-white font-semibold py-2 rounded-lg text-sm">Share</button>
     </div>
   </div>
 </div>
@@ -241,21 +344,24 @@
   html.light .text-blue-400               { color: #2563eb !important; }
   html.light .text-blue-300               { color: #3b82f6 !important; }
   html.light .text-green-400              { color: #0ea5e9 !important; }  /* Sky blue instead of green */
-  html.light .text-yellow-400             { color: #f97316 !important; }  /* Orange instead of yellow */
+  html.light .text-yellow-400             { color: #92400e !important; }  /* Dark amber — readable on white */
+  html.light .text-yellow-300             { color: #92400e !important; }  /* Dark amber */
+  html.light .text-yellow-200             { color: #78350f !important; }  /* Darker amber for issue text */
+  html.light .text-yellow-500             { color: #b45309 !important; }  /* Medium amber for numbers */
   html.light .text-red-400                { color: #dc2626 !important; }
   html.light .text-sky-400                { color: #0284c7 !important; }
   html.light .text-purple-400             { color: #9333ea !important; }
-  html.light .text-yellow-300             { color: #f97316 !important; }  /* Orange */
+  html.light .text-yellow-300             { color: #92400e !important; }  /* Dark amber */
   
   /* Background colors - Blue shades */
   html.light .bg-green-900\/20            { background: #dbeafe !important; }  /* Light blue */
-  html.light .bg-yellow-900\/20           { background: #fed7aa !important; }  /* Light orange */
+  html.light .bg-yellow-900\/20           { background: #fef3c7 !important; }  /* Pale yellow — not orange */
   html.light .bg-sky-900\/20              { background: #e0f2fe !important; }
   html.light .bg-blue-700                 { background: #1d4ed8 !important; }
   
   /* Border colors - Blue shades */
   html.light .border-green-700\/40        { border-color: #93c5fd !important; }  /* Light blue */
-  html.light .border-yellow-600\/50       { border-color: #fdba74 !important; }  /* Light orange */
+  html.light .border-yellow-600\/50       { border-color: #d97706 !important; }  /* Dark amber border */
   html.light .border-sky-700\/40          { border-color: #7dd3fc !important; }
   
   /* Code highlighting */
@@ -359,6 +465,9 @@
     document.getElementById('authGuest').classList.toggle('hidden', !!email);
     document.getElementById('authUser').classList.toggle('hidden', !email);
     if (email) document.getElementById('authEmail').textContent = email;
+    // Update share button visibility when auth state changes
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) shareBtn.classList.toggle('hidden', !email || !currentData);
   }
 
   function getToken() { return authToken; }
@@ -483,14 +592,17 @@
 
   // Switch active view
   function setView(v) {
-    ['analyze','history'].forEach(x => {
-      document.getElementById(`view-${x}`).classList.toggle('hidden', x !== v);
+    ['analyze','history','analytics','shared'].forEach(x => {
+      const el = document.getElementById(`view-${x}`);
+      el.style.display = (x === v) ? '' : 'none';
       const btn = document.getElementById(`nav-${x}`);
       btn.className = x === v
         ? 'nav-btn active-nav text-left px-3 py-2 rounded-lg flex items-center gap-2'
         : 'nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition';
     });
     if (v === 'history') loadHistory();
+    if (v === 'analytics') loadAnalytics();
+    if (v === 'shared') loadSharedReports();
   }
 
   // Switch branch without re-fetching repo metadata
@@ -667,15 +779,11 @@
     renderFileTab('other', d.other);
     renderWarningsTab(d.code);
 
-    // Commits
-    renderList('commits', d.commits, c => `
-      <div class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-4 items-start">
-        <code class="text-yellow-400 shrink-0">${esc(c.sha)}</code>
-        <div class="flex-1 min-w-0">
-          <p class="text-white truncate">${esc(c.message)}</p>
-          <p class="text-slate-500 text-xs mt-0.5">${esc(c.author)} · ${c.date.slice(0,10)}</p>
-        </div>
-      </div>`);
+    // Commits — update tab label with count
+    const commitCount = (d.commits || []).length;
+    document.getElementById('tab-commits').innerHTML =
+      `🔖 Commits${commitCount ? ` <span class="ml-1 bg-slate-700 text-slate-300 text-xs px-1.5 py-0.5 rounded-full">${commitCount}</span>` : ''}`;
+    renderCommitsTab(d.commits);
 
     // PRs
     renderList('prs', d.pull_requests, pr => `
@@ -695,6 +803,60 @@
     if (d.summary && d.summary.issues > 0) {
       showTab('warnings');
     }
+
+    // Update share button visibility
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) shareBtn.classList.toggle('hidden', !authToken);
+
+    // Load collaboration data if authenticated
+    if (authToken && d.id) {
+      loadCommentsAndAssignments(d.id);
+    }
+  }
+
+  function renderCommitsTab(commits) {
+    const c = document.getElementById('tab-commits-content');
+    c.innerHTML = '';
+    if (!commits || !commits.length) {
+      c.innerHTML = '<p class="text-slate-500 py-4">No commits found.</p>';
+      return;
+    }
+
+    // Search bar
+    const bar = document.createElement('div');
+    bar.className = 'flex gap-2 items-center mb-1';
+    bar.innerHTML = `
+      <input id="commitSearch" type="text" placeholder="Search commits, authors..."
+        class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"/>
+      <span id="commitCount" class="text-slate-500 text-xs shrink-0">${commits.length} commits</span>`;
+    c.appendChild(bar);
+
+    const list = document.createElement('div');
+    list.className = 'flex flex-col gap-1';
+    c.appendChild(list);
+
+    function renderCommitList(filter = '') {
+      list.innerHTML = '';
+      const fl = filter.toLowerCase();
+      const filtered = fl
+        ? commits.filter(cm => cm.message.toLowerCase().includes(fl) || cm.author.toLowerCase().includes(fl) || cm.sha.includes(fl))
+        : commits;
+      document.getElementById('commitCount').textContent = `${filtered.length} of ${commits.length} commits`;
+      filtered.forEach(cm => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 flex gap-4 items-center hover:border-slate-500 transition';
+        div.innerHTML = `
+          <code class="text-yellow-400 shrink-0 text-xs font-mono">${esc(cm.sha)}</code>
+          <div class="flex-1 min-w-0">
+            <p class="text-slate-200 text-xs truncate">${esc(cm.message)}</p>
+            <p class="text-slate-500 text-xs mt-0.5">${esc(cm.author)} · ${cm.date.slice(0,10)}</p>
+          </div>`;
+        list.appendChild(div);
+      });
+    }
+
+    renderCommitList();
+    document.getElementById('commitSearch').addEventListener('input', e => renderCommitList(e.target.value));
   }
 
   function renderWarningsTab(codeFiles) {
@@ -768,9 +930,18 @@
           </div>
           <ul class="px-4 py-2 flex flex-col gap-1.5">
             ${matched.map((i, idx) => `
-              <li class="flex items-start gap-2 text-xs">
+              <li class="flex items-start gap-2 text-xs" data-issue-key="${esc(file)}::${idx}">
                 <span class="text-yellow-500 shrink-0 mt-0.5">${idx+1}.</span>
-                <span class="text-yellow-200">${esc(i)}</span>
+                <div class="flex-1 min-w-0">
+                  <span class="text-yellow-200">${esc(i)}</span>
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <span class="assignee-badge hidden text-purple-400 text-xs"></span>
+                    <span class="comment-count text-slate-500 text-xs"></span>
+                  </div>
+                  <div class="comment-thread mt-1 hidden flex flex-col gap-1"></div>
+                  <button class="text-xs text-slate-500 hover:text-slate-300 mt-1" onclick="this.nextElementSibling.classList.toggle('hidden');this.classList.add('hidden')">💬 discuss / assign</button>
+                  <div class="collab-panel hidden mt-1"></div>
+                </div>
               </li>`).join('')}
           </ul>`;
         listContainer.appendChild(card);
@@ -890,11 +1061,414 @@
     b.classList.toggle('hidden', !msg);
   }
 
+  function get_score_color_class(score) {
+    if (score >= 80) return 'text-green-400';
+    if (score >= 50) return 'text-yellow-400';
+    return 'text-red-400';
+  }
+
   function esc(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  // ── Analytics ─────────────────────────────────────────────────────────────
+
+  let trendChartInstance = null;
+
+  async function loadAnalytics() {
+    const token = getToken();
+    if (!token) {
+      document.getElementById('analyticsSignInPrompt').classList.remove('hidden');
+      document.getElementById('analyticsEmpty').classList.add('hidden');
+      document.getElementById('analyticsContent').classList.add('hidden');
+      return;
+    }
+
+    document.getElementById('analyticsSignInPrompt').classList.add('hidden');
+
+    try {
+      const res = await fetch('/analytics/leaderboard', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.status === 401) {
+        openAuthModal();
+        return;
+      }
+
+      if (!res.ok) {
+        document.getElementById('leaderboardError').textContent = `Failed to load leaderboard (${res.status})`;
+        document.getElementById('leaderboardError').classList.remove('hidden');
+        return;
+      }
+
+      const leaderboard = await res.json();
+
+      if (!leaderboard.length) {
+        document.getElementById('analyticsEmpty').classList.remove('hidden');
+        document.getElementById('analyticsContent').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('analyticsEmpty').classList.add('hidden');
+      document.getElementById('analyticsContent').classList.remove('hidden');
+
+      renderLeaderboard(leaderboard);
+      populateRepoSelector(leaderboard);
+
+      // Auto-load trend for first repo
+      if (leaderboard.length) {
+        loadTrend(leaderboard[0].repo_url);
+      }
+
+    } catch (e) {
+      document.getElementById('leaderboardError').textContent = 'Network error loading analytics';
+      document.getElementById('leaderboardError').classList.remove('hidden');
+    }
+  }
+
+  function renderLeaderboard(data) {
+    const tbody = document.getElementById('leaderboardTable');
+    tbody.innerHTML = '';
+    data.forEach((row, idx) => {
+      const rank = idx + 1;
+      const isTop = rank === 1;
+      const tr = document.createElement('tr');
+      tr.className = `border-b border-slate-700 hover:bg-slate-700/30 transition ${isTop ? 'bg-yellow-900/10' : ''}`;
+      tr.innerHTML = `
+        <td class="py-2 pr-4 ${isTop ? 'font-bold text-yellow-400' : 'text-slate-400'}">#${rank}</td>
+        <td class="py-2 pr-4 text-slate-200 truncate overflow-hidden">${esc(row.repo_name)}</td>
+        <td class="py-2 text-center font-bold ${get_score_color_class(row.latest_quality_score)}">${row.latest_quality_score}</td>
+        <td class="py-2 text-center text-slate-400">${row.analyses_count}</td>
+        <td class="py-2 text-center text-slate-500 text-xs">${row.last_analyzed.slice(0,10)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function populateRepoSelector(leaderboard) {
+    const sel = document.getElementById('repoSelector');
+    sel.innerHTML = '';
+    leaderboard.forEach(row => {
+      const opt = document.createElement('option');
+      opt.value = row.repo_url;
+      opt.textContent = row.repo_name;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadTrend(repoUrl) {
+    const token = getToken();
+    if (!token) return;
+
+    document.getElementById('trendError').classList.add('hidden');
+    document.getElementById('trendMessage').classList.add('hidden');
+    document.getElementById('trendChartWrapper').classList.remove('hidden');
+
+    try {
+      const res = await fetch(`/analytics/trends?repo_url=${encodeURIComponent(repoUrl)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.status === 401) {
+        openAuthModal();
+        return;
+      }
+
+      if (!res.ok) {
+        document.getElementById('trendError').textContent = `Failed to load trend (${res.status})`;
+        document.getElementById('trendError').classList.remove('hidden');
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.length < 2) {
+        document.getElementById('trendMessage').textContent = 'Run more analyses to see a trend';
+        document.getElementById('trendMessage').classList.remove('hidden');
+        document.getElementById('trendChartWrapper').classList.add('hidden');
+        return;
+      }
+
+      renderTrendChart(data);
+
+    } catch (e) {
+      document.getElementById('trendError').textContent = 'Network error loading trend';
+      document.getElementById('trendError').classList.remove('hidden');
+    }
+  }
+
+  function renderTrendChart(data) {
+    const canvas = document.getElementById('trendChart');
+    const ctx = canvas.getContext('2d');
+
+    // Destroy previous chart instance
+    if (trendChartInstance) {
+      trendChartInstance.destroy();
+    }
+
+    trendChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map(p => p.timestamp.slice(0,10)),
+        datasets: [{
+          label: 'Quality Score',
+          data: data.map(p => p.quality_score),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.3,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: { color: '#94a3b8' },
+            grid: { color: '#334155' }
+          },
+          x: {
+            ticks: { color: '#94a3b8' },
+            grid: { color: '#334155' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#cbd5e1' } }
+        }
+      }
+    });
+  }
+
   document.getElementById('repoUrl').addEventListener('keydown', e => { if(e.key==='Enter') analyze(); });
+
+  // ── Team Collaboration ─────────────────────────────────────────────────────
+
+  // Share modal
+  function openShareModal() {
+    document.getElementById('shareModal').classList.remove('hidden');
+    document.getElementById('shareEmailsInput').value = '';
+    document.getElementById('shareError').classList.add('hidden');
+  }
+
+  function closeShareModal() {
+    document.getElementById('shareModal').classList.add('hidden');
+  }
+
+  async function submitShare() {
+    const raw = document.getElementById('shareEmailsInput').value.trim();
+    const errEl = document.getElementById('shareError');
+    errEl.classList.add('hidden');
+    if (!raw) return;
+
+    const emails = raw.split(',').map(e => e.trim()).filter(Boolean);
+    const reportId = currentData && currentData.id;
+    if (!reportId) { errEl.textContent = 'No report loaded.'; errEl.classList.remove('hidden'); return; }
+
+    const res = await fetch(`/reports/${encodeURIComponent(reportId)}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ emails })
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      errEl.textContent = data.detail || `Error ${res.status}`;
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    closeShareModal();
+  }
+
+  // Shared with Me view
+  async function loadSharedReports() {
+    const prompt = document.getElementById('sharedSignInPrompt');
+    const list   = document.getElementById('sharedList');
+
+    if (!authToken) {
+      prompt.style.display = '';
+      list.innerHTML = '';
+      return;
+    }
+    prompt.style.display = 'none';
+
+    const res = await fetch('/shared-with-me', {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (!res.ok) {
+      list.innerHTML = `<p class="text-red-400 text-xs">Failed to load shared reports (${res.status})</p>`;
+      return;
+    }
+
+    const items = await res.json();
+    list.innerHTML = '';
+
+    if (!items.length) {
+      list.innerHTML = '<p class="text-slate-500 text-sm py-8 text-center">No reports have been shared with you yet.</p>';
+      return;
+    }
+
+    items.forEach(item => {
+      const scoreColor = item.quality_score >= 80 ? 'text-green-400' : item.quality_score >= 50 ? 'text-yellow-400' : 'text-red-400';
+      const div = document.createElement('div');
+      div.className = 'bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between gap-4';
+      div.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <p class="text-blue-400 truncate text-sm">${esc(item.repo_url)}</p>
+          <p class="text-slate-400 text-xs mt-0.5">🌿 ${esc(item.branch)} · shared by ${esc(item.owner_email)} · ${item.shared_at.slice(0,10)}</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="font-bold text-sm ${scoreColor}">${item.quality_score}</span>
+          <button class="text-xs bg-blue-700 hover:bg-blue-600 text-white px-3 py-1 rounded-lg transition">View</button>
+        </div>`;
+      div.querySelector('button').onclick = () => {
+        document.getElementById('repoUrl').value = item.repo_url;
+        setView('analyze');
+        analyze(item.branch);
+      };
+      list.appendChild(div);
+    });
+  }
+
+  // Load comments and assignments for a report
+  async function loadCommentsAndAssignments(reportId) {
+    if (!authToken) return;
+
+    const [cRes, aRes] = await Promise.all([
+      fetch(`/reports/${encodeURIComponent(reportId)}/comments`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`/reports/${encodeURIComponent(reportId)}/assignments`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+    ]);
+
+    const comments    = cRes.ok    ? await cRes.json()    : [];
+    const assignments = aRes.ok    ? await aRes.json()    : [];
+
+    // Index by file_path + issue_index
+    const commentMap    = {};
+    const assignmentMap = {};
+
+    comments.forEach(c => {
+      const key = `${c.file_path}::${c.issue_index}`;
+      if (!commentMap[key]) commentMap[key] = [];
+      commentMap[key].push(c);
+    });
+
+    assignments.forEach(a => {
+      assignmentMap[`${a.file_path}::${a.issue_index}`] = a;
+    });
+
+    // Inject into rendered issue cards
+    document.querySelectorAll('[data-issue-key]').forEach(card => {
+      const key = card.dataset.issueKey;
+      const assignment = assignmentMap[key];
+      const cardComments = commentMap[key] || [];
+
+      const assigneeEl = card.querySelector('.assignee-badge');
+      if (assigneeEl) {
+        assigneeEl.textContent = assignment ? `👤 ${assignment.assignee_email}` : '';
+        assigneeEl.classList.toggle('hidden', !assignment);
+      }
+
+      const countEl = card.querySelector('.comment-count');
+      if (countEl) countEl.textContent = cardComments.length ? `💬 ${cardComments.length}` : '';
+
+      const threadEl = card.querySelector('.comment-thread');
+      if (threadEl) renderCommentThread(threadEl, reportId, key, cardComments);
+    });
+  }
+
+  function renderCommentThread(container, reportId, issueKey, comments) {
+    const [filePath, issueIndex] = issueKey.split('::');
+    container.innerHTML = '';
+
+    comments.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'flex items-start gap-2 text-xs py-1 border-b border-slate-700';
+      div.dataset.commentId = c.comment_id;
+      div.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <span class="text-blue-400 font-medium">${esc(c.author_email)}</span>
+          <span class="text-slate-500 ml-1">${c.created_at.slice(0,10)}</span>
+          <p class="text-slate-300 mt-0.5">${esc(c.text)}</p>
+        </div>
+        ${c.author_email === authEmail ? `<button onclick="deleteComment('${reportId}','${c.comment_id}',this)" class="text-red-400 hover:text-red-300 shrink-0 text-xs">✕</button>` : ''}`;
+      container.appendChild(div);
+    });
+
+    // New comment input
+    const form = document.createElement('div');
+    form.className = 'flex gap-2 mt-2';
+    form.innerHTML = `
+      <input type="text" placeholder="Add a comment..." class="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"/>
+      <button class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition">Post</button>`;
+    const input = form.querySelector('input');
+    form.querySelector('button').onclick = () => postComment(reportId, filePath, parseInt(issueIndex), input.value, container, issueKey);
+    container.appendChild(form);
+
+    // Assign input
+    const assignForm = document.createElement('div');
+    assignForm.className = 'flex gap-2 mt-1';
+    assignForm.innerHTML = `
+      <input type="text" placeholder="Assign to email..." class="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"/>
+      <button class="text-xs bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded transition">Assign</button>`;
+    const assignInput = assignForm.querySelector('input');
+    assignForm.querySelector('button').onclick = () => assignIssue(reportId, filePath, parseInt(issueIndex), assignInput.value, container.closest('[data-issue-key]'));
+    container.appendChild(assignForm);
+  }
+
+  async function postComment(reportId, filePath, issueIndex, text, container, issueKey) {
+    if (!text.trim()) return;
+    const res = await fetch(`/reports/${encodeURIComponent(reportId)}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ file_path: filePath, issue_index: issueIndex, text })
+    });
+    if (!res.ok) return;
+    const comment = await res.json();
+    // Re-render thread
+    const allComments = [...container.querySelectorAll('[data-comment-id]')].map(el => ({
+      comment_id: el.dataset.commentId,
+      author_email: el.querySelector('.text-blue-400').textContent,
+      created_at: el.querySelector('.text-slate-500').textContent,
+      text: el.querySelector('.text-slate-300').textContent
+    }));
+    allComments.push(comment);
+    renderCommentThread(container, reportId, issueKey, allComments);
+    // Update count badge
+    const card = container.closest('[data-issue-key]');
+    if (card) {
+      const countEl = card.querySelector('.comment-count');
+      if (countEl) countEl.textContent = `💬 ${allComments.length}`;
+    }
+  }
+
+  async function deleteComment(reportId, commentId, btn) {
+    const res = await fetch(`/reports/${encodeURIComponent(reportId)}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.ok) {
+      const row = btn.closest('[data-comment-id]');
+      if (row) row.remove();
+    }
+  }
+
+  async function assignIssue(reportId, filePath, issueIndex, email, card) {
+    if (!email.trim()) return;
+    const res = await fetch(`/reports/${encodeURIComponent(reportId)}/assignments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ file_path: filePath, issue_index: issueIndex, assignee_email: email })
+    });
+    if (!res.ok) return;
+    if (card) {
+      const badge = card.querySelector('.assignee-badge');
+      if (badge) { badge.textContent = `👤 ${email}`; badge.classList.remove('hidden'); }
+    }
+  }
+
 </script>
 </body>
 </html>
