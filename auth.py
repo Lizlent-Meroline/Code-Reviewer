@@ -20,6 +20,7 @@ def get_db():
     """Get SQLite database connection with row factory."""
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
+    con.execute("PRAGMA foreign_keys = ON")
     return con
 
 
@@ -32,6 +33,48 @@ def init_db():
                 email    TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 created  TEXT NOT NULL
+            )
+        """)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS report_shares (
+                id               TEXT PRIMARY KEY,
+                report_owner_id  TEXT NOT NULL,
+                report_id        TEXT NOT NULL,
+                recipient_id     TEXT NOT NULL,
+                shared_at        TEXT NOT NULL,
+                FOREIGN KEY (report_owner_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (recipient_id)    REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE (report_owner_id, report_id, recipient_id)
+            )
+        """)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS issue_comments (
+                comment_id       TEXT PRIMARY KEY,
+                report_owner_id  TEXT NOT NULL,
+                report_id        TEXT NOT NULL,
+                author_id        TEXT NOT NULL,
+                file_path        TEXT NOT NULL,
+                issue_index      INTEGER NOT NULL,
+                text             TEXT NOT NULL,
+                created_at       TEXT NOT NULL,
+                FOREIGN KEY (report_owner_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (author_id)       REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS issue_assignments (
+                id               TEXT PRIMARY KEY,
+                report_owner_id  TEXT NOT NULL,
+                report_id        TEXT NOT NULL,
+                file_path        TEXT NOT NULL,
+                issue_index      INTEGER NOT NULL,
+                assignee_id      TEXT NOT NULL,
+                assigner_id      TEXT NOT NULL,
+                assigned_at      TEXT NOT NULL,
+                FOREIGN KEY (report_owner_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (assignee_id)     REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (assigner_id)     REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE (report_owner_id, report_id, file_path, issue_index)
             )
         """)
 
