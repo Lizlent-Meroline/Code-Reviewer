@@ -2,8 +2,9 @@ import os
 
 CODE_EXTENSIONS = {
     ".py", ".ipynb", ".go", ".js", ".ts", ".java", ".cpp", ".c",
-    ".rs", ".php", ".rb", ".zig", ".html", ".css", ".sh", ".swift",
-    ".kt", ".scala", ".cs", ".r", ".m", ".lua", ".ex", ".exs",
+    ".rs", ".php", ".rb", ".zig", ".html", ".htm", ".css", ".sh",
+    ".bash", ".zsh", ".swift", ".kt", ".scala", ".cs", ".r", ".m",
+    ".lua", ".ex", ".exs",
 }
 
 DOCS_EXTENSIONS = {
@@ -33,15 +34,20 @@ SKIP_EXTENSIONS = {
 MAX_FILES = 50000
 
 
-def classify_file(file_path: str) -> str:
-    """Returns 'code', 'docs', or 'other'."""
-    _, ext = os.path.splitext(file_path)
-    ext = ext.lower()
+def classify_file(ext: str) -> str:
+    """Returns 'code', 'docs', or 'other' based on file extension."""
     if ext in CODE_EXTENSIONS:
         return "code"
     if ext in DOCS_EXTENSIONS:
         return "docs"
     return "other"
+
+
+def classify_by_name(filename: str) -> str:
+    """Classify files that have no extension but known names."""
+    if filename.lower() in ("dockerfile", "makefile"):
+        return "code"
+    return None
 
 
 def get_all_files(repo_path: str) -> list[dict]:
@@ -71,11 +77,32 @@ def get_all_files(repo_path: str) -> list[dict]:
                 continue
 
             full_path = os.path.join(root, filename)
+
+            # For files with no extension, check name and shebang
+            if not ext_lower:
+                # Known no-extension code files
+                by_name = classify_by_name(filename)
+                if by_name:
+                    results.append({
+                        "path": full_path,
+                        "name": filename,
+                        "ext": "",
+                        "type": by_name,
+                    })
+                    continue
+                # Shebang detection for bash scripts
+                try:
+                    with open(full_path, "rb") as fh:
+                        header = fh.read(40).decode("utf-8", errors="ignore")
+                    if any(s in header for s in ("#!/bin/bash", "#!/bin/sh", "#!/usr/bin/env bash", "#!/usr/bin/env sh")):
+                        ext_lower = ".sh"
+                except Exception:
+                    pass
             results.append({
                 "path": full_path,
                 "name": filename,
                 "ext": ext_lower,
-                "type": classify_file(filename),
+                "type": classify_file(ext_lower),
             })
 
             if len(results) >= MAX_FILES:
