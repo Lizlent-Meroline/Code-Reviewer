@@ -49,7 +49,8 @@ def analyze_file(file_meta: dict, repo_url: str = "", branch: str = "") -> dict:
         return result
 
     try:
-        lang = detect_language(path)
+        # Use pre-computed ext from parser if available, else detect from path
+        lang = detect_language(path, file_meta.get("ext", ""))
         result["language"] = lang
         result["issues"] = get_analyzer(lang).analyze(path)
 
