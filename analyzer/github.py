@@ -143,10 +143,21 @@ def get_local_tags(repo_path: str) -> list[dict]:
     ]
 
 
-def get_local_commits(repo_path: str, branch: str, limit: int = 30) -> list[dict]:
-    """Get recent commits from a specific branch."""
+def get_local_commits(repo_path: str, branch: str, limit: int = 500) -> list[dict]:
+    """Get commits from a branch, fetching full history if needed."""
     repo = git.Repo(repo_path)
     commits = []
+
+    # If shallow clone, fetch more history
+    shallow_file = os.path.join(repo_path, ".git", "shallow")
+    if os.path.exists(shallow_file):
+        try:
+            print(f"[github] Fetching commit history for {branch}...")
+            repo.git.fetch("--unshallow", "--no-tags", "origin", branch)
+        except git.GitCommandError:
+            # Already unshallow or fetch failed — continue with what we have
+            pass
+
     try:
         for c in repo.iter_commits(branch, max_count=limit):
             commits.append({
@@ -157,6 +168,7 @@ def get_local_commits(repo_path: str, branch: str, limit: int = 30) -> list[dict
             })
     except Exception:
         pass
+
     return commits
 
 
