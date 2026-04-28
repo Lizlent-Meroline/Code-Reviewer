@@ -16,10 +16,21 @@ SKIP_DIRS = {
     "dist", "build", ".next", "vendor", "target",
     "site-packages", "lib64", "bin", "include",
     ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-    "eggs", ".eggs", "htmlcov", ".coverage",
+    "eggs", ".eggs", "htmlcov", ".coverage", ".cache",
+    "coverage", "tmp", "temp", ".idea", ".vscode",
 }
 
-MAX_FILES = 10000  
+# Skip files that are never useful to analyze
+SKIP_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+    ".mp4", ".mp3", ".wav", ".ogg", ".woff", ".woff2", ".ttf",
+    ".eot", ".otf", ".zip", ".tar", ".gz", ".rar", ".7z",
+    ".exe", ".dll", ".so", ".dylib", ".bin", ".dat",
+    ".lock", ".sum", ".mod",  # lock files — no analysis value
+    ".min.js", ".min.css",    # minified files
+}
+
+MAX_FILES = 50000
 
 
 def classify_file(file_path: str) -> str:
@@ -34,10 +45,7 @@ def classify_file(file_path: str) -> str:
 
 
 def get_all_files(repo_path: str) -> list[dict]:
-    """
-    Walk the repo and return all files with their classification.
-    Each entry: { path, name, ext, type: 'code'|'docs'|'other' }
-    """
+    """Walk the repo and return all files with their classification."""
     results = []
 
     if not os.path.exists(repo_path):
@@ -46,23 +54,27 @@ def get_all_files(repo_path: str) -> list[dict]:
 
     print(f"[parser] Scanning: {repo_path}")
 
-    for root, dirs, files in os.walk(repo_path):
-        # Prune dirs in-place so os.walk won't descend into them
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-
-        # Belt-and-suspenders: skip this root if any path segment is a skip dir
-        rel_root = os.path.relpath(root, repo_path)
-        if rel_root != "." and any(part in SKIP_DIRS for part in rel_root.split(os.sep)):
-            dirs.clear()  # also stop descending further
-            continue
+    for root, dirs, files in os.walk(repo_path, topdown=True):
+        # Prune skip dirs in-place (prevents os.walk from descending)
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith('.')]
 
         for filename in files:
-            full_path = os.path.join(root, filename)
             _, ext = os.path.splitext(filename)
+            ext_lower = ext.lower()
+
+            # Skip binary/useless extensions immediately
+            if ext_lower in SKIP_EXTENSIONS:
+                continue
+
+            # Skip minified files by name pattern
+            if filename.endswith('.min.js') or filename.endswith('.min.css'):
+                continue
+
+            full_path = os.path.join(root, filename)
             results.append({
                 "path": full_path,
                 "name": filename,
-                "ext": ext.lower(),
+                "ext": ext_lower,
                 "type": classify_file(filename),
             })
 
