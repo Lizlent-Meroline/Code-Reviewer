@@ -1,5 +1,6 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from fastapi import HTTPException
 
 from analyzer.github import (
     clone_repo, get_branches, checkout_branch,
@@ -83,6 +84,9 @@ def run_tag_switch(repo_url: str, tag: str) -> dict:
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
     repo_path = os.path.join("repos", repo_name)
 
+    if not os.path.exists(repo_path):
+        raise HTTPException(status_code=400, detail=f"Repository not found locally. Please analyze the repository first.")
+
     all_branches = get_branches(repo_path)
     checkout_tag(repo_path, tag)
 
@@ -96,10 +100,16 @@ def run_branch_switch(repo_url: str, branch: str) -> dict:
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
     repo_path = os.path.join("repos", repo_name)
 
+    if not os.path.exists(repo_path):
+        raise HTTPException(status_code=400, detail=f"Repository not found locally. Please analyze the repository first.")
+
     all_branches = get_branches(repo_path)
     branch_names = [b["name"] for b in all_branches]
 
-    target_branch = branch if branch in branch_names else all_branches[0]["name"]
+    if branch not in branch_names:
+        raise HTTPException(status_code=400, detail=f"Branch '{branch}' not found in repository. Available branches: {', '.join(branch_names)}")
+
+    target_branch = branch
     checkout_branch(repo_path, target_branch)
 
     return _build_report(repo_url, repo_path, target_branch, all_branches, skip_gh_api=True)
