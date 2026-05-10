@@ -347,6 +347,15 @@ def home():
     return FileResponse("src/index.html")
 
 
+@app.get("/src/{path:path}")
+def serve_src(path: str):
+    """Serve static files from src directory."""
+    file_path = os.path.join("src", path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")
+
+
 @app.post("/export/json")
 async def export_report_json(data: dict):
     """Export analysis report as JSON."""
