@@ -1,0 +1,29 @@
+# ── Repo Analyzer — Docker targets ───────────────────────────────────────────
+IMAGE := repo-analyzer
+TAG   := latest
+PORT  := 8000
+
+.PHONY: build docker-run docker-stop docker-logs
+
+build:               ## Build the Docker image
+	docker build -t $(IMAGE):$(TAG) .
+
+docker-run:          ## Run the app in Docker (detached)
+	docker run -d \
+		--name $(IMAGE) \
+		-p $(PORT):8000 \
+		-e JWT_SECRET=$(JWT_SECRET) \
+		-e GITHUB_TOKEN=$(GITHUB_TOKEN) \
+		-e OPENAI_API_KEY=$(OPENAI_API_KEY) \
+		-v $(PWD)/repos:/app/repos \
+		-v $(PWD)/cache:/app/cache \
+		-v $(PWD)/history:/app/history \
+		-v $(PWD)/users.db:/app/users.db \
+		$(IMAGE):$(TAG)
+	@echo "Server running at http://localhost:$(PORT)"
+
+docker-stop:         ## Stop and remove the Docker container
+	docker stop $(IMAGE) && docker rm $(IMAGE)
+
+docker-logs:         ## Tail logs from the running container
+	docker logs -f $(IMAGE)
