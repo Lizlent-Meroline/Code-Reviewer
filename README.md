@@ -42,8 +42,3 @@ The API will be available at `http://localhost:8000`.
 ## API Documentation
 
 See [ENDPOINTS.md](ENDPOINTS.md) for detailed API endpoint documentation.
-
-## Environment Variables
-
-- `OPENAI_API_KEY`: Your OpenAI API key for AI analysis
-- `GITHUB_TOKEN`: GitHub personal access token for repository access
