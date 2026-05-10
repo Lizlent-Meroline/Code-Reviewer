@@ -30,11 +30,17 @@ def init_db():
         con.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id       TEXT PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
                 email    TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 created  TEXT NOT NULL
             )
         """)
+        # Add username column to existing databases that don't have it yet
+        try:
+            con.execute("ALTER TABLE users ADD COLUMN username TEXT UNIQUE")
+        except Exception:
+            pass  # Column already exists
         con.execute("""
             CREATE TABLE IF NOT EXISTS report_shares (
                 id               TEXT PRIMARY KEY,
@@ -92,16 +98,16 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
-def create_user(email: str, password: str) -> dict:
+def create_user(email: str, password: str, username: str) -> dict:
     """Create new user account with hashed password."""
     user_id = str(uuid.uuid4())
     hashed  = hash_password(password)
     with get_db() as con:
         con.execute(
-            "INSERT INTO users (id, email, password, created) VALUES (?, ?, ?, ?)",
-            (user_id, email.lower(), hashed, datetime.now(timezone.utc).isoformat())
+            "INSERT INTO users (id, username, email, password, created) VALUES (?, ?, ?, ?, ?)",
+            (user_id, username.strip(), email.lower(), hashed, datetime.now(timezone.utc).isoformat())
         )
-    return {"id": user_id, "email": email}
+    return {"id": user_id, "email": email, "username": username.strip()}
 
 
 def authenticate(email: str, password: str) -> Optional[dict]:
@@ -109,16 +115,17 @@ def authenticate(email: str, password: str) -> Optional[dict]:
     with get_db() as con:
         row = con.execute("SELECT * FROM users WHERE email = ?", (email.lower(),)).fetchone()
     if row and verify_password(password, row["password"]):
-        return {"id": row["id"], "email": row["email"]}
+        return {"id": row["id"], "email": row["email"], "username": row["username"] or row["email"]}
     return None
 
 
-def make_token(user_id: str, email: str) -> str:
+def make_token(user_id: str, email: str, username: str = "") -> str:
     """Generate JWT token for authenticated user."""
     payload = {
-        "sub":   user_id,
-        "email": email,
-        "exp":   datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRY),
+        "sub":      user_id,
+        "email":    email,
+        "username": username,
+        "exp":      datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRY),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 

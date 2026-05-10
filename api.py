@@ -207,6 +207,7 @@ class RepoRequest(BaseModel):
 class AuthRequest(BaseModel):
     email: str
     password: str
+    username: Optional[str] = None  # required on signup, ignored on login
 
 
 @app.websocket("/ws/{client_id}")
@@ -224,11 +225,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 @app.post("/register")
 def register(req: AuthRequest):
     """Register a new user account."""
+    if not req.username or not req.username.strip():
+        raise HTTPException(status_code=400, detail="Username is required.")
     try:
-        user = create_user(req.email, req.password)
+        user = create_user(req.email, req.password, req.username)
     except Exception:
-        raise HTTPException(status_code=400, detail="Email already registered.")
-    return {"token": make_token(user["id"], user["email"]), "email": user["email"]}
+        raise HTTPException(status_code=400, detail="Email or username already registered.")
+    return {"token": make_token(user["id"], user["email"], user["username"]), "email": user["email"], "username": user["username"]}
 
 
 @app.post("/login")
@@ -237,7 +240,7 @@ def login(req: AuthRequest):
     user = authenticate(req.email, req.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
-    return {"token": make_token(user["id"], user["email"]), "email": user["email"]}
+    return {"token": make_token(user["id"], user["email"], user["username"]), "email": user["email"], "username": user["username"]}
 
 
 @app.post("/analyze")
