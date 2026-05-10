@@ -1,0 +1,63 @@
+  .active-nav  { background: #1e293b; color: white; }
+  .active-tab  { background: #1e293b; color: white; border: 1px solid #334155; border-bottom: none; }
+
+  /* Light mode overrides - Better contrast and appealing colors */
+  html.light body                          { background: #f8fafc; color: #1e293b; }
+  html.light aside                         { background: #ffffff; border-color: #e2e8f0; box-shadow: 2px 0 8px rgba(0,0,0,0.05); }
+  html.light .bg-slate-950                 { background: #ffffff !important; border-bottom: 1px solid #e2e8f0; }
+  html.light .bg-slate-800                 { background: #ffffff !important; border: 1px solid #e2e8f0 !important; }
+  html.light .bg-slate-700                 { background: #f1f5f9 !important; }
+  html.light .border-slate-800            { border-color: #e2e8f0 !important; }
+  html.light .border-slate-700            { border-color: #cbd5e1 !important; }
+  html.light .text-slate-100              { color: #1e293b !important; }
+  html.light .text-slate-400              { color: #64748b !important; }
+  html.light .text-slate-500              { color: #64748b !important; }
+  html.light .text-slate-600              { color: #475569 !important; }
+  html.light .text-white                  { color: #0f172a !important; font-weight: 500; }
+  html.light .text-slate-200              { color: #334155 !important; }
+  html.light .text-slate-300              { color: #475569 !important; }
+  html.light .placeholder-slate-500::placeholder { color: #94a3b8; }
+  html.light input, html.light select     { background: #ffffff !important; color: #0f172a !important; border-color: #cbd5e1 !important; }
+  html.light .active-nav                  { background: #3b82f6; color: #ffffff !important; }
+  html.light .active-tab                  { background: #ffffff; color: #3b82f6 !important; border-color: #3b82f6; font-weight: 600; }
+  html.light .hover\:bg-slate-800:hover   { background: #f1f5f9 !important; }
+  html.light #themeToggle                 { background: #3b82f6 !important; color: #ffffff !important; }
+  
+  /* Status colors - Blue shades instead of green/yellow, remove navy */
+  html.light .text-blue-400               { color: #2563eb !important; }
+  html.light .text-blue-300               { color: #3b82f6 !important; }
+  html.light .text-green-400              { color: #0ea5e9 !important; }  /* Sky blue instead of green */
+  html.light .text-yellow-400             { color: #92400e !important; }  /* Dark amber — readable on white */
+  html.light .text-yellow-300             { color: #92400e !important; }  /* Dark amber */
+  html.light .text-yellow-200             { color: #78350f !important; }  /* Darker amber for issue text */
+  html.light .text-yellow-500             { color: #b45309 !important; }  /* Medium amber for numbers */
+  html.light .text-red-400                { color: #dc2626 !important; }
+  html.light .text-sky-400                { color: #0284c7 !important; }
+  html.light .text-purple-400             { color: #9333ea !important; }
+  html.light .text-yellow-300             { color: #92400e !important; }  /* Dark amber */
+  
+  /* Background colors - Blue shades */
+  html.light .bg-green-900\/20            { background: #dbeafe !important; }  /* Light blue */
+  html.light .bg-yellow-900\/20           { background: #fef3c7 !important; }  /* Pale yellow — not orange */
+  html.light .bg-sky-900\/20              { background: #e0f2fe !important; }
+  html.light .bg-blue-700                 { background: #1d4ed8 !important; }
+  
+  /* Border colors - Blue shades */
+  html.light .border-green-700\/40        { border-color: #93c5fd !important; }  /* Light blue */
+  html.light .border-yellow-600\/50       { border-color: #d97706 !important; }  /* Dark amber border */
+  html.light .border-sky-700\/40          { border-color: #7dd3fc !important; }
+  
+  /* Code highlighting */
+  html.light code                         { background: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; }
+  
+  /* Progress bar */
+  html.light #progressBar                 { background: #ffffff !important; border-color: #e2e8f0 !important; }
+  html.light #progressFill                { background: #3b82f6 !important; }
+  html.light #progressText                { color: #1e293b !important; }
+  html.light #progressDetails             { color: #64748b !important; }
+  
+  /* Buttons */
+  html.light .bg-green-600                { background: #0ea5e9 !important; }  /* Sky blue */
+  html.light .hover\:bg-green-500:hover   { background: #0284c7 !important; }
+  html.light .bg-red-600                  { background: #dc2626 !important; }
+  html.light .hover\:bg-red-500:hover     { background: #b91c1c !important; }
