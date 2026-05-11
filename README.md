@@ -1,4 +1,4 @@
-# GitHub AI Code Reviewer
+## Repo Analyzer
 
 A fast, self-contained code analysis tool that scans GitHub repositories and provides instant feedback on code quality, structure, and potential issues.
 
