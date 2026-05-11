@@ -28,6 +28,10 @@ cache/
 # Cloned repos
 repos/
 
+# Environment
+.env
+.env.*
+
 # IDE
 .vscode/
 .idea/
@@ -41,6 +45,5 @@ Thumbs.db
 
 # Misc
 *.log
-.env
 .watchfilesignore
 structure.txt
