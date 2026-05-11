@@ -591,6 +591,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/favicon.ico")
+def favicon():
+    """Return 204 No Content for favicon to suppress 404 errors."""
+    return Response(status_code=204)
+
+
 # ── Team Collaboration helpers ────────────────────────────────────────────────
 
 def _assert_report_access(user_id: str, report_owner_id: str, report_id: str, db) -> bool:
