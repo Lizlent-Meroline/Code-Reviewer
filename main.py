@@ -67,12 +67,24 @@ def analyze_file(file_meta: dict, repo_url: str = "", branch: str = "") -> dict:
 
 def run(repo_url: str, branch: str = None, client_id: str = None, manager=None, loop=None) -> dict:
     """Clone repo, checkout branch, and generate full analysis report."""
-    repo_path = clone_repo(repo_url)
-    all_branches = get_branches(repo_path)
+    try:
+        repo_path = clone_repo(repo_url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to clone repository: {str(e)}")
+    
+    try:
+        all_branches = get_branches(repo_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch branches: {str(e)}")
+    
     branch_names = [b["name"] for b in all_branches]
 
     target_branch = branch if branch in branch_names else all_branches[0]["name"]
-    checkout_branch(repo_path, target_branch)
+    
+    try:
+        checkout_branch(repo_path, target_branch)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to checkout branch '{target_branch}': {str(e)}")
 
     return _build_report(repo_url, repo_path, target_branch, all_branches,
                          client_id=client_id, manager=manager, loop=loop)
@@ -81,14 +93,25 @@ def run(repo_url: str, branch: str = None, client_id: str = None, manager=None, 
 def run_tag_switch(repo_url: str, tag: str) -> dict:
     """Fast path: checkout a tag and re-scan files, skip GitHub API calls."""
     from analyzer.github import checkout_tag
+    import hashlib
+    
+    # Use full URL hash to avoid repo name collisions
+    repo_hash = hashlib.md5(repo_url.lower().encode()).hexdigest()[:8]
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
-    repo_path = os.path.join("repos", repo_name)
+    repo_path = os.path.join("repos", f"{repo_name}_{repo_hash}")
 
     if not os.path.exists(repo_path):
         raise HTTPException(status_code=400, detail=f"Repository not found locally. Please analyze the repository first.")
 
-    all_branches = get_branches(repo_path)
-    checkout_tag(repo_path, tag)
+    try:
+        all_branches = get_branches(repo_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch branches: {str(e)}")
+    
+    try:
+        checkout_tag(repo_path, tag)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to checkout tag '{tag}': {str(e)}")
 
     result = _build_report(repo_url, repo_path, tag, all_branches, skip_gh_api=True)
     result["active_tag"] = tag
@@ -97,22 +120,31 @@ def run_tag_switch(repo_url: str, tag: str) -> dict:
 
 def run_branch_switch(repo_url: str, branch: str) -> dict:
     """Fast path: checkout + re-scan files, skip GitHub API calls."""
+    # Use full URL hash to avoid repo name collisions
+    import hashlib
+    repo_hash = hashlib.md5(repo_url.lower().encode()).hexdigest()[:8]
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
-    repo_path = os.path.join("repos", repo_name)
+    repo_path = os.path.join("repos", f"{repo_name}_{repo_hash}")
 
     if not os.path.exists(repo_path):
         raise HTTPException(status_code=400, detail=f"Repository not found locally. Please analyze the repository first.")
 
-    all_branches = get_branches(repo_path)
+    try:
+        all_branches = get_branches(repo_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch branches: {str(e)}")
+    
     branch_names = [b["name"] for b in all_branches]
 
     if branch not in branch_names:
-        raise HTTPException(status_code=400, detail=f"Branch '{branch}' not found in repository. Available branches: {', '.join(branch_names)}")
+        raise HTTPException(status_code=400, detail=f"Branch '{branch}' not found. Available: {', '.join(branch_names[:5])}")
 
-    target_branch = branch
-    checkout_branch(repo_path, target_branch)
+    try:
+        checkout_branch(repo_path, branch)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to checkout branch '{branch}': {str(e)}")
 
-    return _build_report(repo_url, repo_path, target_branch, all_branches, skip_gh_api=True)
+    return _build_report(repo_url, repo_path, branch, all_branches, skip_gh_api=True)
 
 
 def _build_report(repo_url, repo_path, target_branch, all_branches,

@@ -1,8 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
 gitpython
 openai
 requests
 PyJWT
 bcrypt
+websockets
 reportlab

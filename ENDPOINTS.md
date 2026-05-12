@@ -155,7 +155,7 @@ Returns `[]` if not authenticated.
 ---
 
 ### `DELETE /history`
-Clear all history for the authenticated user.
+Clear all history for the authenticated user. Also cascade-deletes all associated shares, comments, and assignments.
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -166,7 +166,177 @@ Clear all history for the authenticated user.
 
 ---
 
-## Export
+## Analytics
+
+### `GET /analytics/scores`
+Get quality scores for all history entries of the authenticated user.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+[{ "id": "2024-01-01T00:00:00", "repo_url": "...", "branch": "main", "quality_score": 87, "timestamp": "..." }]
+```
+
+---
+
+### `GET /analytics/trends?repo_url=<url>`
+Get quality score trend over time for a specific repository.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+[{ "timestamp": "2024-01-01T00:00:00", "branch": "main", "quality_score": 87 }]
+```
+
+---
+
+### `GET /analytics/leaderboard`
+Get repository leaderboard ranked by latest quality score.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+[{ "repo_url": "...", "repo_name": "user/repo", "latest_quality_score": 92, "analyses_count": 5, "last_analyzed": "2024-01-01T00:00:00" }]
+```
+
+---
+
+## Team Collaboration
+
+All collaboration endpoints require authentication (`Authorization: Bearer <token>`).  
+`{report_id}` is the ISO timestamp `id` from a history entry (e.g. `2024-01-15T10:30:00`).
+
+---
+
+### `POST /reports/{report_id}/share`
+Share a report with one or more team members by email.
+
+**Request:**
+```json
+{ "emails": ["alice@example.com", "bob@example.com"] }
+```
+**Response:**
+```json
+[{ "report_id": "...", "recipient_email": "alice@example.com", "shared_at": "..." }]
+```
+**Errors:** `401` — not authenticated. `404` — report not found or email not registered (body identifies the email). Duplicate shares are silently ignored.
+
+---
+
+### `DELETE /reports/{report_id}/share/{recipient_email}`
+Revoke a share. Only the report owner may call this.
+
+**Response:**
+```json
+{ "status": "revoked" }
+```
+**Errors:** `401` — not authenticated. `403` — caller is not the report owner. `404` — share not found.
+
+---
+
+### `GET /shared-with-me`
+List all reports shared with the authenticated user.
+
+**Response:**
+```json
+[{
+  "report_id": "...",
+  "owner_email": "carol@example.com",
+  "repo_url": "https://github.com/org/repo",
+  "branch": "main",
+  "quality_score": 87,
+  "shared_at": "..."
+}]
+```
+**Errors:** `401` — not authenticated.
+
+---
+
+### `POST /reports/{report_id}/comments`
+Add a comment to a specific issue within a report.
+
+**Request:**
+```json
+{ "file_path": "src/main.py", "issue_index": 2, "text": "This looks risky." }
+```
+**Response `201`:**
+```json
+{
+  "comment_id": "<uuid>",
+  "report_id": "...",
+  "author_email": "alice@example.com",
+  "file_path": "src/main.py",
+  "issue_index": 2,
+  "text": "This looks risky.",
+  "created_at": "..."
+}
+```
+**Errors:** `401` — not authenticated. `403` — no access to report. `422` — empty or whitespace-only text.
+
+---
+
+### `GET /reports/{report_id}/comments`
+Retrieve all comments for a report, ordered by `created_at` ascending.
+
+**Response:** Array of comment objects (same shape as POST response).
+
+**Errors:** `401` — not authenticated. `403` — no access to report.
+
+---
+
+### `DELETE /reports/{report_id}/comments/{comment_id}`
+Delete a comment. Only the comment author may delete their own comment.
+
+**Response:**
+```json
+{ "status": "deleted" }
+```
+**Errors:** `401` — not authenticated. `403` — caller is not the comment author. `404` — comment not found.
+
+---
+
+### `POST /reports/{report_id}/assignments`
+Assign a specific issue to a developer. Creates or replaces the assignment for the same `(file_path, issue_index)` pair.
+
+**Request:**
+```json
+{ "file_path": "src/main.py", "issue_index": 2, "assignee_email": "bob@example.com" }
+```
+**Response:**
+```json
+{
+  "report_id": "...",
+  "file_path": "src/main.py",
+  "issue_index": 2,
+  "assignee_email": "bob@example.com",
+  "assigner_email": "alice@example.com",
+  "assigned_at": "..."
+}
+```
+**Errors:** `401` — not authenticated. `403` — no access to report. `404` — assignee email not registered.
+
+---
+
+### `GET /reports/{report_id}/assignments`
+Retrieve all assignments for a report.
+
+**Response:** Array of assignment objects (same shape as POST response).
+
+**Errors:** `401` — not authenticated. `403` — no access to report.
+
+---
+
+### `GET /my-assignments`
+Retrieve all issues assigned to the authenticated user, ordered by `assigned_at` descending.
+
+**Response:** Array of assignment objects (same shape as POST /assignments response).
+
+**Errors:** `401` — not authenticated.
+
+---
 
 ### `POST /export/json`
 Export analysis report as a downloadable JSON file.

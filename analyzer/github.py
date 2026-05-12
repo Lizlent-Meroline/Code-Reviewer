@@ -8,8 +8,13 @@ import git
 
 def clone_repo(repo_url: str, dest: str = "repos") -> str:
     """Clone or reuse a GitHub repository using a fast single-branch shallow clone."""
+    import hashlib
+    
+    # Use URL hash to avoid collisions when multiple repos have same name
+    repo_hash = hashlib.md5(repo_url.lower().encode()).hexdigest()[:8]
     repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
-    repo_path = os.path.join(dest, repo_name)
+    unique_repo_name = f"{repo_name}_{repo_hash}"
+    repo_path = os.path.join(dest, unique_repo_name)
     os.makedirs(dest, exist_ok=True)
 
     if os.path.exists(repo_path):
@@ -24,13 +29,13 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
     print(f"[github] Shallow cloning {repo_url} (single branch)...")
     try:
         git.Git(dest).clone(
-            repo_url, repo_name,
+            repo_url, unique_repo_name,
             "--depth=1", "--no-tags", "--single-branch", "--filter=blob:none",
         )
     except git.GitCommandError:
         print(f"[github] Retrying without partial clone filter...")
         git.Git(dest).clone(
-            repo_url, repo_name,
+            repo_url, unique_repo_name,
             "--depth=1", "--no-tags", "--single-branch",
         )
 

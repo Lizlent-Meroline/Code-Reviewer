@@ -1,18 +1,32 @@
 # Python
-venv/
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+.Python
 *.egg-info/
 dist/
 build/
+.eggs/
 
-# Runtime data
-cache/
-history/
-repos/
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Node
+node_modules/
+
+# Database & user data
 users.db
+history/
+history.json
+
+# Cache
+cache/
+
+# Cloned repos
+repos/
 
 # Environment
 .env
@@ -21,3 +35,15 @@ users.db
 # IDE
 .vscode/
 .idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kiro specs (internal)
+.kiro/
+
+# Misc
+*.log
+.watchfilesignore
+structure.txt
