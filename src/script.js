@@ -328,7 +328,11 @@
         headers,
         body: JSON.stringify({ url, branch, client_id: clientId })
       });
-      if (!res.ok) { showError(`Server error ${res.status}`); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showError(data.detail || `Server error ${res.status}`);
+        return;
+      }
       currentData = await res.json();
       render(currentData);
       // Hide progress bar after analysis completes

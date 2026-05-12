@@ -53,13 +53,17 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
             )
         except git.GitCommandError as e:
             err = str(e).lower()
-            if "repository not found" in err or "not found" in err or "does not exist" in err:
-                raise RuntimeError(f"Repository not found: '{repo_url}'. Check the URL is correct and the repo is public.")
-            if "authentication" in err or "could not read" in err or "403" in err or "401" in err:
-                raise RuntimeError(f"Access denied for '{repo_url}'. The repository may be private.")
             if "timeout" in err or "timed out" in err:
-                raise RuntimeError(f"Connection timed out while cloning '{repo_url}'. Try again.")
-            raise RuntimeError(f"Failed to clone '{repo_url}': {e}")
+                raise RuntimeError(
+                    f"Connection timed out cloning '{repo_url}'. Please try again."
+                )
+            # GitHub returns "repository not found" for both private repos and
+            # genuinely missing repos — it never reveals which one.
+            raise RuntimeError(
+                f"Could not access '{repo_url}'. "
+                "The repository does not exist or is private. "
+                "Only public repositories are supported."
+            )
 
     print(f"[github] Clone done.")
     return repo_path
