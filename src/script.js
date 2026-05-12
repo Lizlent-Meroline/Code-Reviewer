@@ -91,7 +91,7 @@
     if (loggedIn) {
       document.getElementById('authEmail').textContent = username || email;
       const emailDisplay = document.getElementById('authUsernameDisplay');
-      if (emailDisplay) emailDisplay.textContent = email || '';
+      if (emailDisplay) emailDisplay.textContent = '';
     }
     // Update share button visibility when auth state changes
     const shareBtn = document.getElementById('shareBtn');
