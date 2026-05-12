@@ -70,7 +70,7 @@ def run(repo_url: str, branch: str = None, client_id: str = None, manager=None, 
     try:
         repo_path = clone_repo(repo_url)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to clone repository: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     
     try:
         all_branches = get_branches(repo_path)

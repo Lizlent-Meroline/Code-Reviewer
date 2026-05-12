@@ -9,10 +9,22 @@ import git
 def clone_repo(repo_url: str, dest: str = "repos") -> str:
     """Clone or reuse a GitHub repository using a fast single-branch shallow clone."""
     import hashlib
-    
+
+    # Normalise URL — add https:// if missing
+    url = repo_url.strip()
+    if not url.startswith(("http://", "https://", "git@")):
+        url = "https://" + url
+
+    # Validate it looks like a GitHub URL
+    if "github.com" not in url and "gitlab.com" not in url and "bitbucket.org" not in url:
+        raise RuntimeError(
+            f"Unsupported repository URL: '{repo_url}'. "
+            "Please provide a full GitHub/GitLab/Bitbucket URL."
+        )
+
     # Use URL hash to avoid collisions when multiple repos have same name
-    repo_hash = hashlib.md5(repo_url.lower().encode()).hexdigest()[:8]
-    repo_name = repo_url.rstrip("/").split("/")[-1].replace(".git", "")
+    repo_hash = hashlib.md5(url.lower().encode()).hexdigest()[:8]
+    repo_name = url.rstrip("/").split("/")[-1].replace(".git", "")
     unique_repo_name = f"{repo_name}_{repo_hash}"
     repo_path = os.path.join(dest, unique_repo_name)
     os.makedirs(dest, exist_ok=True)
@@ -26,18 +38,28 @@ def clone_repo(repo_url: str, dest: str = "repos") -> str:
             print(f"[github] Cached repo invalid ({e}), re-cloning...")
             shutil.rmtree(repo_path)
 
-    print(f"[github] Shallow cloning {repo_url} (single branch)...")
+    print(f"[github] Shallow cloning {url} (single branch)...")
     try:
         git.Git(dest).clone(
-            repo_url, unique_repo_name,
+            url, unique_repo_name,
             "--depth=1", "--no-tags", "--single-branch", "--filter=blob:none",
         )
     except git.GitCommandError:
         print(f"[github] Retrying without partial clone filter...")
-        git.Git(dest).clone(
-            repo_url, unique_repo_name,
-            "--depth=1", "--no-tags", "--single-branch",
-        )
+        try:
+            git.Git(dest).clone(
+                url, unique_repo_name,
+                "--depth=1", "--no-tags", "--single-branch",
+            )
+        except git.GitCommandError as e:
+            err = str(e).lower()
+            if "repository not found" in err or "not found" in err or "does not exist" in err:
+                raise RuntimeError(f"Repository not found: '{repo_url}'. Check the URL is correct and the repo is public.")
+            if "authentication" in err or "could not read" in err or "403" in err or "401" in err:
+                raise RuntimeError(f"Access denied for '{repo_url}'. The repository may be private.")
+            if "timeout" in err or "timed out" in err:
+                raise RuntimeError(f"Connection timed out while cloning '{repo_url}'. Try again.")
+            raise RuntimeError(f"Failed to clone '{repo_url}': {e}")
 
     print(f"[github] Clone done.")
     return repo_path
