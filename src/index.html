@@ -4,11 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Repo Analyzer</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>"/>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: 'class' }</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="src/style.css"/>
 </head>
 <body class="bg-slate-900 text-slate-100 dark:bg-slate-900 dark:text-slate-100 min-h-screen font-mono text-sm transition-colors duration-200">
@@ -18,20 +19,20 @@
   <!-- Sidebar -->
   <aside class="w-64 bg-slate-950 light:bg-white border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto">
     <div class="p-4 border-b border-slate-800 flex items-center gap-2">
-      <span class="text-blue-400 text-xl">⬡</span>
+      <i class="fas fa-search text-blue-400 text-xl"></i>
       <span class="font-bold text-white text-base">Repo Analyzer</span>
     </div>
 
     <!-- Nav tabs -->
     <nav class="flex flex-col gap-1 p-3 border-b border-slate-800">
       <button onclick="setView('analyze')" id="nav-analyze"
-        class="nav-btn active-nav text-left px-3 py-2 rounded-lg flex items-center gap-2">🔍 Analyze</button>
+        class="nav-btn active-nav text-left px-3 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-search"></i> Analyze</button>
       <button onclick="setView('history')" id="nav-history"
-        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">🕓 History</button>
+        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition"><i class="fas fa-history"></i> History</button>
       <button onclick="setView('analytics')" id="nav-analytics"
-        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">📊 Analytics</button>
+        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition"><i class="fas fa-chart-bar"></i> Analytics</button>
       <button onclick="setView('shared')" id="nav-shared"
-        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition">🤝 Shared with Me</button>
+        class="nav-btn text-left px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition"><i class="fas fa-share-alt"></i> Shared with Me</button>
     </nav>
 
     <!-- Repo info (visible after analysis) -->
@@ -84,11 +85,11 @@
       </select>
       <button onclick="analyze()"
         class="bg-blue-600 hover:bg-blue-500 active:scale-95 transition text-white font-semibold px-5 py-2 rounded-lg flex items-center gap-2">
-        <span id="btnIcon">🚀</span><span id="btnText">Analyze</span>
+        <span id="btnIcon"><i class="fas fa-rocket"></i></span><span id="btnText">Analyze</span>
       </button>
       <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark mode"
         class="bg-slate-700 hover:bg-slate-600 transition text-white px-3 py-2 rounded-lg text-base shrink-0">
-        🌙
+        <i class="fas fa-moon"></i>
       </button>
     </div>
 
@@ -115,7 +116,7 @@
 
         <!-- Empty state -->
         <div id="emptyState" class="flex flex-col items-center justify-center py-32 text-slate-600 gap-3">
-          <span class="text-5xl">🔎</span>
+          <i class="fas fa-search text-5xl"></i>
           <p>Enter a GitHub repo URL and click Analyze</p>
         </div>
 
@@ -127,13 +128,13 @@
             <div id="metaContent" class="flex-1"></div>
             <div class="flex gap-2">
               <button onclick="exportReport('json')" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg transition">
-                📥 Export JSON
+                <i class="fas fa-download"></i> Export JSON
               </button>
               <button onclick="exportReport('pdf')" class="text-xs px-3 py-1.5 rounded-lg transition" style="background-color:#1e3a5f;color:#ffffff;" onmouseover="this.style.backgroundColor='#1a3354'" onmouseout="this.style.backgroundColor='#1e3a5f'">
-                📄 Export PDF
+                <i class="fas fa-file-pdf"></i> Export PDF
               </button>
               <button id="shareBtn" onclick="openShareModal()" class="hidden text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg transition">
-                🤝 Share
+                <i class="fas fa-share-alt"></i> Share
               </button>
             </div>
           </div>
@@ -164,12 +165,12 @@
 
           <!-- File tabs -->
           <div class="flex gap-1 border-b border-slate-700 flex-wrap">
-            <button onclick="showTab('code')"       id="tab-code"       class="inner-tab active-tab px-4 py-2 rounded-t-lg">💻 Code</button>
-            <button onclick="showTab('warnings')"   id="tab-warnings"   class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">⚠️ Code Issues</button>
-            <button onclick="showTab('docs')"       id="tab-docs"       class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📄 Docs</button>
-            <button onclick="showTab('other')"      id="tab-other"      class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">📦 Other</button>
-            <button onclick="showTab('commits')"    id="tab-commits"    class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔖 Commits</button>
-            <button onclick="showTab('prs')"        id="tab-prs"        class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition">🔀 PRs</button>
+            <button onclick="showTab('code')"       id="tab-code"       class="inner-tab active-tab px-4 py-2 rounded-t-lg"><i class="fas fa-code"></i> Code</button>
+            <button onclick="showTab('warnings')"   id="tab-warnings"   class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition"><i class="fas fa-exclamation-triangle"></i> Code Issues</button>
+            <button onclick="showTab('docs')"       id="tab-docs"       class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition"><i class="fas fa-file-alt"></i> Docs</button>
+            <button onclick="showTab('other')"      id="tab-other"      class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition"><i class="fas fa-box"></i> Other</button>
+            <button onclick="showTab('commits')"    id="tab-commits"    class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition"><i class="fas fa-code-branch"></i> Commits</button>
+            <button onclick="showTab('prs')"        id="tab-prs"        class="inner-tab px-4 py-2 rounded-t-lg text-slate-400 hover:text-white transition"><i class="fas fa-code-branch"></i> PRs</button>
           </div>
 
           <div id="tab-code-content"     class="flex flex-col gap-2"></div>
@@ -186,25 +187,25 @@
       <div id="view-history" class="flex flex-col gap-3" style="display:none">
         <div class="flex items-center justify-between">
           <h2 class="text-white font-bold text-base">Report History</h2>
-          <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300 transition">🗑 Clear all</button>
+          <button onclick="clearHistory()" class="text-xs text-red-400 hover:text-red-300 transition"><i class="fas fa-trash"></i> Clear all</button>
         </div>
         <div id="historyList" class="flex flex-col gap-2"></div>
       </div>
 
       <!-- Analytics view -->
       <div id="view-analytics" class="flex flex-col gap-4" style="display:none">
-        <h2 class="text-white font-bold text-base">📊 Analytics Dashboard</h2>
+        <h2 class="text-white font-bold text-base"><i class="fas fa-chart-bar"></i> Analytics Dashboard</h2>
 
         <!-- Sign-in prompt -->
         <div id="analyticsSignInPrompt" class="hidden flex flex-col items-center py-16 gap-3 text-slate-500">
-          <span class="text-4xl">🔒</span>
+          <i class="fas fa-lock text-4xl"></i>
           <p class="text-sm">Sign in to view your analytics</p>
           <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-500 transition text-white text-xs px-4 py-2 rounded-lg">Sign in / Sign up</button>
         </div>
 
         <!-- Empty state -->
         <div id="analyticsEmpty" class="hidden flex flex-col items-center py-16 gap-3 text-slate-500">
-          <span class="text-4xl">📭</span>
+          <i class="fas fa-inbox text-4xl"></i>
           <p class="text-sm">No analyses yet — run your first analysis to see data here</p>
         </div>
 
@@ -213,7 +214,7 @@
 
           <!-- Leaderboard -->
           <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <h3 class="text-white font-semibold mb-3 flex items-center gap-2">🏆 Repository Leaderboard</h3>
+            <h3 class="text-white font-semibold mb-3 flex items-center gap-2"><i class="fas fa-trophy"></i> Repository Leaderboard</h3>
             <div id="leaderboardError" class="hidden text-red-400 text-xs mb-2"></div>
             <div class="overflow-x-auto">
               <table class="w-full text-xs table-fixed">
@@ -241,7 +242,7 @@
           <!-- Trend chart -->
           <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
             <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h3 class="text-white font-semibold flex items-center gap-2">📈 Quality Trend</h3>
+              <h3 class="text-white font-semibold flex items-center gap-2"><i class="fas fa-chart-line"></i> Quality Trend</h3>
               <select id="repoSelector" onchange="loadTrend(this.value)"
                 class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
               </select>
@@ -258,9 +259,9 @@
 
       <!-- Shared with Me view -->
       <div id="view-shared" class="flex flex-col gap-3" style="display:none">
-        <h2 class="text-white font-bold text-base">🤝 Shared with Me</h2>
+        <h2 class="text-white font-bold text-base"><i class="fas fa-share-alt"></i> Shared with Me</h2>
         <div id="sharedSignInPrompt" class="flex flex-col items-center py-16 gap-3 text-slate-500" style="display:none">
-          <span class="text-4xl">🔒</span>
+          <i class="fas fa-lock text-4xl"></i>
           <p class="text-sm">Sign in to view reports shared with you</p>
           <button onclick="openAuthModal()" class="bg-blue-600 hover:bg-blue-500 transition text-white text-xs px-4 py-2 rounded-lg">Sign in / Sign up</button>
         </div>
@@ -276,7 +277,7 @@
   <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
     <div class="flex items-center justify-between">
       <h2 class="text-white font-bold text-base">Sign in</h2>
-      <button onclick="closeAuthModal()" class="text-slate-500 hover:text-white transition text-lg">✕</button>
+      <button onclick="closeAuthModal()" class="text-slate-500 hover:text-white transition text-lg"><i class="fas fa-times"></i></button>
     </div>
     <!-- Tab toggle -->
     <div class="flex rounded-lg overflow-hidden border border-slate-700 text-xs">
@@ -304,8 +305,8 @@
 <div id="shareModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
   <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
     <div class="flex items-center justify-between">
-      <h2 class="text-white font-bold text-base">🤝 Share Report</h2>
-      <button onclick="closeShareModal()" class="text-slate-500 hover:text-white transition text-lg">✕</button>
+      <h2 class="text-white font-bold text-base"><i class="fas fa-share-alt"></i> Share Report</h2>
+      <button onclick="closeShareModal()" class="text-slate-500 hover:text-white transition text-lg"><i class="fas fa-times"></i></button>
     </div>
     <p class="text-slate-400 text-xs">Enter email addresses of teammates to share this report with.</p>
     <div class="flex flex-col gap-2">
